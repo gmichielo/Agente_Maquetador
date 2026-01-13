@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Mostrar overlay
         overlay.classList.add("active");
 
-        // Desactivar SOLO el botón (no el file input)
+        // Desactivar el botón
         submitBtn.disabled = true;
 
         // Ocultar resultados anteriores
@@ -28,7 +28,6 @@ document.addEventListener("DOMContentLoaded", () => {
             resultBox.style.display = "none";
         }
 
-        // ⚠️ Si quieres desactivar el resto, hazlo DESPUÉS
         setTimeout(() => {
             [...form.elements].forEach(el => {
                 if (el !== fileInput) {
@@ -38,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 0);
     });
 
-    // Si cambia el archivo → limpiar resultados
+    // Si cambia el archivo pues limpiar resultados
     fileInput.addEventListener("change", () => {
         if (resultBox) {
             resultBox.style.display = "none";

@@ -2,10 +2,7 @@ def adapt_gpt_cv_to_engine(cv: dict) -> dict:
     """
     Normaliza el CV GPT al formato esperado por cv_engine
     """
-
-    # =========================
-    # EDUCACION
-    # =========================
+    # Educacion
     if cv.get("educacion") and isinstance(cv["educacion"], list):
         if cv["educacion"] and isinstance(cv["educacion"][0], dict):
             cv["educacion"] = [
@@ -19,12 +16,10 @@ def adapt_gpt_cv_to_engine(cv: dict) -> dict:
                 for e in cv["educacion"]
             ]
 
-    # =========================
-    # EXPERIENCIA (DICT → FORMATO PLANTILLA)
-    # =========================
+    # Experiencia (Dict a formato de plantilla)
     if cv.get("experiencia") and isinstance(cv["experiencia"], list):
 
-        # ---- CASO 1: experiencia estructurada (dict) ----
+        # CASO 1: experiencia estructurada (dict)
         if cv["experiencia"] and isinstance(cv["experiencia"][0], dict):
             bloques = []
 
@@ -50,13 +45,11 @@ def adapt_gpt_cv_to_engine(cv: dict) -> dict:
             cv["experiencia"] = bloques
             cv["experiencia_formateada"] = "\n\n".join(bloques)
 
-        # ---- CASO 2: experiencia ya en texto plano ----
+        # CASO 2: experiencia ya en texto plano
         elif cv["experiencia"] and isinstance(cv["experiencia"][0], str):
             cv["experiencia_formateada"] = "\n\n".join(cv["experiencia"])
 
-    # =========================
-    # FALLBACK DE SEGURIDAD
-    # =========================
+    # Fallback de seguridad
     if not cv.get("experiencia_formateada"):
         cv["experiencia_formateada"] = ""
 

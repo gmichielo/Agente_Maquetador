@@ -10,10 +10,7 @@ import time
 import threading
 import pythoncom
 
-# =========================================================
 # 1. UTILIDADES
-# =========================================================
-
 def normalize_text(text):
     text = unicodedata.normalize("NFKD", text)
     text = "".join(c for c in text if not unicodedata.combining(c))
@@ -32,10 +29,7 @@ def read_pdf(path):
     return "\n".join(blocks)
 
 
-# =========================================================
-# 2. NORMALIZACIÓN ATS
-# =========================================================
-
+# 2. NORMALIZACION ATS
 def rebuild_structure(text):
     headers = [
         "perfil profesional", "profile",
@@ -48,7 +42,7 @@ def rebuild_structure(text):
     for h in headers:
         text = re.sub(rf"\s*{h}\s*", f"\n{h.upper()}\n", text, flags=re.IGNORECASE)
 
-    # Insertar salto de línea antes de cualquier • (u otros bullets) y mantener el símbolo
+    # Insertar salto de linea antes de cualquier • (u otros bullets) y mantener el simbolo
     text = re.sub(r"\s*([•\*\|▪●])\s*", r"\n\1 ", text)
     
     return normalize_text(text)
@@ -64,17 +58,14 @@ def normalize_experience_lines(lines):
         cleaned.append(l)
     return cleaned
 
-# =========================================================
-# 3. EXTRACCIÓN
-# =========================================================
-
+# 3. EXTRACCION
 def extract_name(lines):
     """
     Extrae el nombre de un CV, intentando ser más flexible.
     """
-    for line in lines[:10]:  # solo revisar primeras 10 líneas
+    for line in lines[:10]:  # solo revisar primeras 10 lineas
         line_clean = line.strip()
-        # ignorar líneas vacías o con números o emails
+        # ignorar lineas vacias o con numeros o emails
         if not line_clean:
             continue
         if re.search(r'\d', line_clean):
@@ -82,7 +73,7 @@ def extract_name(lines):
         if re.search(r'\S+@\S+', line_clean):  # ignorar emails
             continue
         if len(line_clean.split()) >= 2:  # debe tener al menos 2 palabras
-            # eliminar títulos o palabras comunes como "perfil", "experiencia"
+            # eliminar titulos o palabras comunes como "perfil", "experiencia"
             if re.search(r'perfil|experiencia|skills|educacion', line_clean, re.IGNORECASE):
                 continue
             return line_clean  # devuelve tal cual
@@ -148,7 +139,7 @@ def split_by_sections(lines):
 
         for k, keys in SECTIONS.items():
             for key in keys:
-                # 👇 HEADER si la línea EMPIEZA por el nombre del header
+                # HEADER si la linea EMPIEZA por el nombre del header
                 if low.startswith(key):
                     current = k
                     matched = True
@@ -191,17 +182,17 @@ def extract_idiomas(lines):
     for i, l in enumerate(lines):
         low = l.lower()
 
-        # ---- FORMATO NORMAL (Español: Nativo) ----
+        # FORMATO NORMAL (Español: Nativo)
         matches = re.findall(r'([A-Za-zÁÉÍÓÚáéíóú]+)\s*[:\-]\s*(\w+)', l)
         for lang, lvl in matches:
             idiomas[lang.capitalize()] = lvl.capitalize()
 
-        # ---- EUROPASS: Mother tongue(s) ----
+        # EUROPASS: Mother tongue(s)
         if "mother tongue" in low:
             if i + 1 < len(lines):
                 idiomas[lines[i + 1].strip().capitalize()] = "Nativo"
 
-        # ---- EUROPASS: ENGLISH C1 C1 C1 ----
+        # EUROPASS: ENGLISH C1 C1 C1
         m = re.match(r'^([A-Z]+)\s+(A1|A2|B1|B2|C1|C2)', l)
         if m:
             idiomas[m.group(1).capitalize()] = m.group(2)
@@ -258,20 +249,20 @@ def format_experiencia_plantilla(lines):
         if not l:
             continue
 
-        # -------- FECHA SOLA --------
+        # Fecha sola
         if DATE_REGEX.search(l) and len(l.split()) <= 6:
             if actual:
                 actual["fecha"] = l
             continue
 
-        # -------- PUESTO + FECHA (EUROPASS) --------
+        # Puesto + fecha (EUROPASS)
         if DATE_REGEX.search(l) and " – " in l:
             if actual:
                 actual["puesto"] = l.split(" – ")[0].strip()
                 actual["fecha"] = " – ".join(l.split(" – ")[1:])
             continue
 
-        # -------- EMPRESA (EUROPASS ICONO / TEXTO) --------
+        # Empresa (EUROPASS ICONO / TEXTO)
         if "–" in l and any(city in l.lower() for city in ["madrid", "gijon", "oviedo", "spain"]):
             if actual:
                 bloques.append(actual)
@@ -283,7 +274,7 @@ def format_experiencia_plantilla(lines):
             }
             continue
 
-        # -------- EMPRESA CLÁSICA --------
+        # Eempresa clasica
         if l.isupper() and len(l.split()) <= 6:
             if actual:
                 bloques.append(actual)
@@ -298,18 +289,18 @@ def format_experiencia_plantilla(lines):
         if not actual:
             continue
 
-        # -------- PUESTO --------
+        # Puesto
         if not actual["puesto"]:
             actual["puesto"] = l
             continue
 
-        # -------- FUNCIONES --------
+        # Funciones
         actual["funciones"].append(l)
 
     if actual:
         bloques.append(actual)
 
-    # -------- FORMATO FINAL --------
+    # Formato final
     salida = []
     for b in bloques:
         salida.append(
@@ -327,7 +318,7 @@ def format_proyectos(lines):
     actual = []
 
     for l in lines:
-        # Título del proyecto (línea corta o sin bullets)
+        # Titulo del proyecto
         if not l.startswith(("•", "-", "*")) and len(l.split()) <= 6:
             if actual:
                 bloques.append("\n".join(actual))
@@ -344,10 +335,7 @@ def format_proyectos(lines):
 def clean_bullets(lines):
     return [re.sub(r'^[•\-\*]\s*', '', l) for l in lines]
 
-# =========================================================
 # 4. PARSER PRINCIPAL
-# =========================================================
-
 def is_europass(text):
     markers = [
         "europass",
@@ -371,7 +359,7 @@ def parse_experiencia_europass(lines):
         if not l:
             continue
 
-        # Empresa (empresa – ciudad, país)
+        # Empresa (empresa – ciudad, pais)
         if " – " in l and any(x in l.lower() for x in ["spain", "madrid", "gijon", "oviedo"]):
             if empresa:
                 bloques.append({
@@ -438,11 +426,7 @@ def parse_cv(pdf_path):
         "proyectos_formateados": format_proyectos(sections["proyectos"])
     }
 
-
-# =========================================================
 # 5. DOCX / PDF
-# =========================================================
-
 def cv_json_to_docx_data(cv):
     return {
         "NOMBRE": cv["nombre"],
@@ -471,7 +455,7 @@ def is_empty_value(v):
     return False
 
 def replace_placeholders(doc, data, empty_text=""):
-    # --------- PÁRRAFOS ---------
+    # Parrafos
     for p in doc.paragraphs:
         full_text = p.text
 
@@ -482,16 +466,16 @@ def replace_placeholders(doc, data, empty_text=""):
                 continue
 
             if is_empty_value(v):
-                # Si el párrafo SOLO contiene el placeholder → borrar párrafo
+                # Si el parrafo solo contiene el placeholder para luego borrar parrafo
                 if full_text.strip() == placeholder:
                     p.text = ""
                 else:
-                    # Si está mezclado con texto → reemplazar por texto alternativo
+                    # Si esta mezclado con texto pues reemplazar por texto alternativo
                     p.text = full_text.replace(placeholder, empty_text)
             else:
                 p.text = full_text.replace(placeholder, str(v))
 
-    # --------- TABLAS ---------
+    # Tablas
     for t in doc.tables:
         for r in t.rows:
             for c in r.cells:
@@ -526,11 +510,11 @@ def replace_placeholders_preserve_style(doc, data, empty_text=""):
                 else:
                     run.text = run.text.replace(placeholder, str(v))
 
-    # --------- PÁRRAFOS ---------
+    # Parrafos
     for p in doc.paragraphs:
         replace_in_runs(p.runs, data)
 
-    # --------- TABLAS ---------
+    # Tablas
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
@@ -545,26 +529,20 @@ def generate_cv_from_template(template_path, cv_json, output_dir="output"):
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # -----------------------------
-    # Preparar nombres únicos
-    # -----------------------------
+    # Preparar nombres unicos
     safe_name = cv_json["nombre"].replace(" ", "_") or "CV"
     timestamp = int(time.time())
     docx_out = os.path.abspath(os.path.join(output_dir, f"CV_{safe_name}_{timestamp}.docx"))
     pdf_out = os.path.abspath(os.path.join(output_dir, f"CV_{safe_name}_{timestamp}.pdf"))
     template_path = os.path.abspath(template_path)
 
-    # -----------------------------
-    # Limpiar archivos antiguos (opcional)
-    # -----------------------------
+    # Limpiar archivos antiguos
     if os.path.exists(docx_out):
         os.remove(docx_out)
     if os.path.exists(pdf_out):
         os.remove(pdf_out)
 
-    # -----------------------------
     # Copiar plantilla y reemplazar placeholders
-    # -----------------------------
     shutil.copy(template_path, docx_out)
     doc = Document(docx_out)
 
@@ -575,9 +553,7 @@ def generate_cv_from_template(template_path, cv_json, output_dir="output"):
 
     doc.save(docx_out)
 
-    # -----------------------------
-    # Función para generar PDF en hilo separado
-    # -----------------------------
+    # Funcion para generar PDF en hilo separado
     pdf_generated = False
 
     def convert_pdf_thread():
@@ -602,7 +578,5 @@ def generate_cv_from_template(template_path, cv_json, output_dir="output"):
         # En otros sistemas no se usa docx2pdf
         pdf_out = None
 
-    # -----------------------------
-    # Devolver DOCX siempre, PDF si se generó
-    # -----------------------------
+    # Devolver DOCX siempre, PDF si se genero
     return docx_out, pdf_out if pdf_generated else None
