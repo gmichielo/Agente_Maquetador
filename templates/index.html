@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>CV Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("cvForm");
+    const overlay = document.getElementById("overlay");
+    const resultBox = document.getElementById("resultBox");
+    const submitBtn = document.getElementById("submitBtn");
+    const fileInput = form.querySelector('input[type="file"]');
+
+    form.addEventListener("submit", () => {
+        // Mostrar overlay
+        overlay.classList.add("active");
+
+        // Desactivar SOLO el botón (no el file input)
+        submitBtn.disabled = true;
+
+        // Ocultar resultados anteriores
+        if (resultBox) {
+            resultBox.style.display = "none";
+        }
+
+        // ⚠️ Si quieres desactivar el resto, hazlo DESPUÉS
+        setTimeout(() => {
+            [...form.elements].forEach(el => {
+                if (el !== fileInput) {
+                    el.disabled = true;
+                }
+            });
+        }, 0);
+    });
+
+    // Si cambia el archivo → limpiar resultados
+    fileInput.addEventListener("change", () => {
+        if (resultBox) {
+            resultBox.style.display = "none";
+        }
+    });
+});
+</script>
+
+<div class="card">
+    <h2>Generador de CV</h2>
+
+    <form method="POST" enctype="multipart/form-data" id="cvForm">
+        <label>CV en PDF</label>
+        <input type="file" name="cv_pdf" required>
+
+        <label>Plantilla</label>
+        <select name="plantilla" required>
+            <option value="4">Plantilla 1</option>
+            <option value="2">Plantilla 2</option>
+            <option value="3">Plantilla 3</option>
+            <option value="1">Plantilla 4</option>
+        </select>
+
+        <button type="submit" id="submitBtn">
+            <span class="btn-text">Generar CV</span>
+            <span class="spinner"></span>
+        </button>
+    </form>
+
+    {% if success %}
+    <div class="success" id="resultBox">
+        <div class="result-name">
+            CV generado de <strong>{{ nombre }}</strong>
+        </div>
+
+        <a href="/download/{{ docx }}">📘 Descargar DOCX</a><br>
+
+        {% if pdf %}
+            <a href="/download/{{ pdf }}">📕 Descargar PDF</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div id="overlay">
+    <div class="overlay-content">
+        <span class="spinner"></span>
+        <p>Procesando CV...</p>
+    </div>
+</div>
