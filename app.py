@@ -5,8 +5,7 @@ import webbrowser
 import sys
 from cv_gparser import parse_cv_with_gpt
 from cv_adapter import adapt_gpt_cv_to_engine
-from cv_engine import parse_cv, generate_cv_from_template
-from cv_engine import read_pdf, rebuild_structure
+from cv_engine import read_pdf, rebuild_structure, generate_cv_from_template
 
 app = Flask(__name__)
 
@@ -31,11 +30,24 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 PLANTILLAS = {
-    "1": "Plantilla1.docx",
-    "2": "Plantilla2.docx",
-    "3": "Plantilla3.docx",
-    "4": "Plantilla4.docx"
+    "1": {
+        "file": "Plantilla1.docx",
+        "name": "Plantilla-DTA"
+    },
+    "2": {
+        "file": "Plantilla2.docx",
+        "name": "Plantilla-EUROPASS"
+    },
+    "3": {
+        "file": "Plantilla3.docx",
+        "name": "Plantilla-Testeo"
+    },
+    "4": {
+        "file": "Plantilla4.docx",
+        "name": "Plantilla-Basica"
+    }
 }
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -56,12 +68,16 @@ def index():
         pdf_path = os.path.join(UPLOAD_FOLDER, pdf_file.filename)
         pdf_file.save(pdf_path)
 
+        plantilla_info = PLANTILLAS.get(plantilla_id)
+
         plantilla_path = resource_path(
             os.path.join(
                 "templates_docx",
-                PLANTILLAS.get(plantilla_id)
+                plantilla_info["file"]
             )
         )
+
+        plantilla_nombre = plantilla_info["name"]
 
         print("🔍 Parseando CV...")
         raw_text = read_pdf(pdf_path)
@@ -77,7 +93,8 @@ def index():
         docx_path, pdf_out = generate_cv_from_template(
             plantilla_path,
             cv_json,
-            OUTPUT_FOLDER
+            OUTPUT_FOLDER,
+            plantilla_nombre=plantilla_nombre
         )
 
         return render_template(

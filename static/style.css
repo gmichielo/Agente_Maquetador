@@ -4,17 +4,17 @@
 }
 
 body {
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    background: linear-gradient(135deg, #ff622a, #ff8f3a, #ff9c2b);
     min-height: 100vh;
     margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: #ff4000;
 }
 
 .card {
-    background: #1e293b;
+    background: #f1f7ff;
     width: 420px;
     padding: 30px;
     border-radius: 14px;
@@ -40,7 +40,7 @@ select {
     padding: 10px;
     border-radius: 8px;
     border: none;
-    background: #0f172a;
+    background: #bbbbbb;
     color: #fff;
 }
 
@@ -49,7 +49,7 @@ button {
     padding: 12px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, #01b7ff, #0051ff);
+    background: linear-gradient(135deg, #ff8f3a, #ff622a);
     color: #fff;
     font-size: 15px;
     font-weight: 600;
@@ -59,13 +59,13 @@ button {
 
 button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 247, 255, 0.4);
+    box-shadow: 0 8px 20px rgba(255, 152, 26, 0.4);
 }
 
 .success {
     margin-top: 20px;
     padding: 15px;
-    background: #2a3a55;
+    background: #ffaf71;
     border-radius: 10px;
     text-align: center;
 }
@@ -73,7 +73,7 @@ button:hover {
 .success a {
     display: inline-block;
     margin-top: 10px;
-    color: #0066ff;
+    color: #ff4000;
     text-decoration: none;
     font-weight: 500;
 }
@@ -85,7 +85,7 @@ button:hover {
 #overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.85);
+    background: rgba(42, 19, 15, 0.85);
     display: none;
     align-items: center;
     justify-content: center;
@@ -111,4 +111,3 @@ button:hover {
     font-size: 14px;
     opacity: 0.9;
 }
-

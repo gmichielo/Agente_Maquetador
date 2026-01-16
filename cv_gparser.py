@@ -19,9 +19,12 @@ La estructura debe ser EXACTAMENTE esta:
     "email": "",
     "telefono": "",
     "github": "",
-    "linkedin": ""
+    "linkedin": "",
+    "provincia_pais": ""
+
   }},
   "perfil": "",
+  "areas_especializacion": "",
   "skills": [],
   "experiencia": [],
   "experiencia_formateada": "",
@@ -33,7 +36,8 @@ La estructura debe ser EXACTAMENTE esta:
 }}
 
 REGLAS IMPORTANTES:
-- No inventes datos
+- No inventes datos (ESTO SUPER IMPORTANTE)
+- NO SUBAS NINGUN DATO A TU REGISTRO O MEMORIA
 - Mantén el orden original de skills y experiencia
 - Usa bullets • cuando aplique
 - Si una sección no existe, devuélvela vacía
@@ -52,6 +56,7 @@ Funciones:
 
 REGLAS:
 - Usa siempre "Empresa:", "Puesto:" y "Funciones:"
+- Ordenar de forma de mas reciente a mas antigua teneiendo prioridad las que son Actuales (current, present,actualidad,etc...)
 - Usa bullets • (no ●, no -, no *)
 - NO devuelvas objetos, SOLO strings
 - Mantén el orden cronológico original
@@ -60,6 +65,13 @@ REGLAS:
 Además, el campo "experiencia_formateada" debe ser
 la concatenación de todos los elementos de "experiencia"
 separados por DOS saltos de línea.
+
+En la parte de provincia_pais obivamente si el CV lo indica pues colocar esa informacion, pero el
+caso que no lo de pues hacer una estimacion por datos relevantes (educacion, experiencia laboral) e indicar con [Estimado].
+Cualquier experiencia o educacion que haga referencia que esta en la actualidad (current, present,actualidad,etc...) tiene mas peso la ubicacion de esa
+
+En la parte de areas_especializacion pues si el CV lo indica pues colocar esa informacion, pero el
+caso que no lo de pues hacer una estimacion por datos relevantes (habilidades, experiencias laborales, proyectos) e indicar con [Estimado]
 
 CV A ANALIZAR:
 \"\"\"

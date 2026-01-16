@@ -47,9 +47,6 @@ def rebuild_structure(text):
     
     return normalize_text(text)
 
-def split_lines(text):
-    return [l.strip() for l in text.split("\n") if len(l.strip()) > 2]
-
 def normalize_experience_lines(lines):
     cleaned = []
     for l in lines:
@@ -58,147 +55,7 @@ def normalize_experience_lines(lines):
         cleaned.append(l)
     return cleaned
 
-# 3. EXTRACCION
-def extract_name(lines):
-    """
-    Extrae el nombre de un CV, intentando ser más flexible.
-    """
-    for line in lines[:10]:  # solo revisar primeras 10 lineas
-        line_clean = line.strip()
-        # ignorar lineas vacias o con numeros o emails
-        if not line_clean:
-            continue
-        if re.search(r'\d', line_clean):
-            continue
-        if re.search(r'\S+@\S+', line_clean):  # ignorar emails
-            continue
-        if len(line_clean.split()) >= 2:  # debe tener al menos 2 palabras
-            # eliminar titulos o palabras comunes como "perfil", "experiencia"
-            if re.search(r'perfil|experiencia|skills|educacion', line_clean, re.IGNORECASE):
-                continue
-            return line_clean  # devuelve tal cual
-    return "Nombre no detectado"
-
-
-def extract_contact(text):
-    email = re.search(r'\S+@\S+', text)
-
-    phone = re.search(
-        r'(\+\d{1,3}[\s\-]?)?(\(?\d{2,4}\)?[\s\-]?)?\d{3,4}[\s\-]?\d{3,4}',
-        text
-    )
-
-    github = re.search(r'github\.com/\S+', text, re.IGNORECASE)
-    linkedin = re.search(r'https?://(www\.)?linkedin\.com/\S+', text, re.IGNORECASE)
-
-    telefono = phone.group(0).replace("\n", " ").strip() if phone else ""
-
-    return {
-        "email": email.group(0) if email else "",
-        "telefono": telefono,
-        "github": github.group(0) if github else "",
-        "linkedin": linkedin.group(0) if linkedin else ""
-    }
-
-
-def extract_certificaciones(educacion_lines):
-    certs = []
-    edu = []
-
-    for l in educacion_lines:
-        low = l.lower()
-        if any(k in low for k in ["cert", "ibm", "caelum", "oracle", "aws"]):
-            certs.append(l)
-        else:
-            edu.append(l)
-
-    return edu, certs
-
-
-SECTIONS = {
-    "perfil": ["perfil profesional", "profile", "summary", "about me"],
-    "experiencia": ["experiencia laboral", "work experience", "experiencia profesional", "work history"],
-    "educacion": ["educacion", "education", "certificaciones", "formacion academica", "education and training"],
-    "skills": ["skills", "habilidades", "experticia tecnica", "competencias", "skills & competencies"],
-    "idiomas": ["idiomas", "languages", "language","language skills"],
-    "proyectos": ["proyectos", "proyectos destacados", "projects"]
-}
-
-
-def split_by_sections(lines):
-    data = {k: [] for k in SECTIONS}
-    current = None
-
-    for line in lines:
-        line_clean = line.strip()
-        if not line_clean:
-            continue
-
-        low = line_clean.lower()
-        matched = False
-
-        for k, keys in SECTIONS.items():
-            for key in keys:
-                # HEADER si la linea EMPIEZA por el nombre del header
-                if low.startswith(key):
-                    current = k
-                    matched = True
-                    break
-            if matched:
-                break
-
-        if not matched and current:
-            data[current].append(line_clean)
-
-    return data
-
-
-
-def extract_skills(lines):
-    skills = []
-    seen = set()
-
-    for l in lines:
-        for s in re.split(r"[,:]", l):
-            s = s.strip()
-
-            if len(s) <= 2:
-                continue
-
-            # evitar duplicados manteniendo orden
-            key = s.lower()
-            if key in seen:
-                continue
-
-            seen.add(key)
-            skills.append(s)
-
-    return skills
-
-
-def extract_idiomas(lines):
-    idiomas = {}
-
-    for i, l in enumerate(lines):
-        low = l.lower()
-
-        # FORMATO NORMAL (Español: Nativo)
-        matches = re.findall(r'([A-Za-zÁÉÍÓÚáéíóú]+)\s*[:\-]\s*(\w+)', l)
-        for lang, lvl in matches:
-            idiomas[lang.capitalize()] = lvl.capitalize()
-
-        # EUROPASS: Mother tongue(s)
-        if "mother tongue" in low:
-            if i + 1 < len(lines):
-                idiomas[lines[i + 1].strip().capitalize()] = "Nativo"
-
-        # EUROPASS: ENGLISH C1 C1 C1
-        m = re.match(r'^([A-Z]+)\s+(A1|A2|B1|B2|C1|C2)', l)
-        if m:
-            idiomas[m.group(1).capitalize()] = m.group(2)
-
-    return idiomas
-
+# 3. FORMATEOS
 DATE_REGEX = re.compile(
     r"""
     (
@@ -335,98 +192,7 @@ def format_proyectos(lines):
 def clean_bullets(lines):
     return [re.sub(r'^[•\-\*]\s*', '', l) for l in lines]
 
-# 4. PARSER PRINCIPAL
-def is_europass(text):
-    markers = [
-        "europass",
-        "mother tongue",
-        "language skills",
-        "education and training"
-    ]
-    low = text.lower()
-    return any(m in low for m in markers)
-
-def parse_experiencia_europass(lines):
-    bloques = []
-
-    empresa = None
-    puesto = None
-    fecha = None
-    funciones = []
-
-    for l in lines:
-        l = l.strip()
-        if not l:
-            continue
-
-        # Empresa (empresa – ciudad, pais)
-        if " – " in l and any(x in l.lower() for x in ["spain", "madrid", "gijon", "oviedo"]):
-            if empresa:
-                bloques.append({
-                    "empresa": empresa,
-                    "puesto": puesto or "",
-                    "fecha": fecha or "",
-                    "funciones": funciones
-                })
-            empresa = l.replace("", "").strip()
-            puesto = None
-            fecha = None
-            funciones = []
-            continue
-
-        # Puesto + fecha
-        if DATE_REGEX.search(l) and " – " in l:
-            parts = l.split(" – ")
-            puesto = parts[0].strip()
-            fecha = " – ".join(parts[1:])
-            continue
-
-        # Funciones
-        if l.startswith(("•", "-", "*")) or len(l.split()) > 4:
-            funciones.append(l.lstrip("•-* ").strip())
-
-    if empresa:
-        bloques.append({
-            "empresa": empresa,
-            "puesto": puesto or "",
-            "fecha": fecha or "",
-            "funciones": funciones
-        })
-
-    return bloques
-
-def parse_cv(pdf_path):
-    raw = read_pdf(pdf_path)
-    structured = rebuild_structure(raw)
-    lines = split_lines(structured)
-    sections = split_by_sections(lines)
-
-    if is_europass(raw):
-        bloques = parse_experiencia_europass(sections["experiencia"])
-        experiencia_formateada = format_experiencia_bloques(bloques)
-        experiencia = sections["experiencia"]
-    else:
-        sections["experiencia"] = normalize_experience_lines(sections["experiencia"])
-        experiencia = sections["experiencia"]
-        experiencia_formateada = format_experiencia_plantilla(experiencia)
-
-    educacion_limpia, certificaciones = extract_certificaciones(sections["educacion"])
-
-    return {
-        "nombre": extract_name(lines),
-        "contacto": extract_contact(structured),
-        "perfil": " ".join(sections["perfil"]),
-        "skills": extract_skills(sections["skills"]),
-        "experiencia": experiencia,
-        "experiencia_formateada": experiencia_formateada,
-        "educacion": educacion_limpia,
-        "certificaciones": certificaciones,
-        "idiomas": extract_idiomas(sections["idiomas"]),
-        "proyectos": sections["proyectos"],
-        "proyectos_formateados": format_proyectos(sections["proyectos"])
-    }
-
-# 5. DOCX / PDF
+# 4. DOCX / PDF
 def cv_json_to_docx_data(cv):
     return {
         "NOMBRE": cv["nombre"],
@@ -434,8 +200,10 @@ def cv_json_to_docx_data(cv):
         "TELEFONO": cv["contacto"]["telefono"],
         "GITHUB": cv["contacto"]["github"],
         "LINKEDIN": cv["contacto"]["linkedin"],
+        "UBI": cv.get("contacto", {}).get("provincia_pais", ""),
         "PERFIL": cv["perfil"],
-        "SKILLS": ", ".join(cv["skills"]),
+        "ESPECIALIZACION": cv.get("areas_especializacion", ""),
+        "SKILLS": " | ".join(cv["skills"]),
         "FORMACION": "\n".join(cv["educacion"]),
         "EDUCACION": "\n".join(cv["educacion"]),
         "CERTIFICACIONES": "\n".join(cv["certificaciones"]),
@@ -522,7 +290,12 @@ def replace_placeholders_preserve_style(doc, data, empty_text=""):
                     replace_in_runs(p.runs, data)
 
 
-def generate_cv_from_template(template_path, cv_json, output_dir="output"):
+def generate_cv_from_template(
+    template_path,
+    cv_json,
+    output_dir="output",
+    plantilla_nombre="Plantilla"
+    ):
     """
     Genera un DOCX y un PDF desde la plantilla usando docx2pdf.
     Usa threading + pythoncom.CoInitialize() para que funcione en Flask.
@@ -530,11 +303,22 @@ def generate_cv_from_template(template_path, cv_json, output_dir="output"):
     os.makedirs(output_dir, exist_ok=True)
 
     # Preparar nombres unicos
-    safe_name = cv_json["nombre"].replace(" ", "_") or "CV"
+    def sanitize(text):
+        return re.sub(r'[^A-Za-z0-9_-]', '', text.replace(" ", "_"))
+
+    safe_name = sanitize(cv_json["nombre"] or "CV")
+    safe_plantilla = sanitize(plantilla_nombre)
     timestamp = int(time.time())
-    docx_out = os.path.abspath(os.path.join(output_dir, f"CV_{safe_name}_{timestamp}.docx"))
-    pdf_out = os.path.abspath(os.path.join(output_dir, f"CV_{safe_name}_{timestamp}.pdf"))
-    template_path = os.path.abspath(template_path)
+
+    docx_out = os.path.join(
+        output_dir,
+        f"CV_{safe_name}_{safe_plantilla}_{timestamp}.docx"
+    )
+
+    pdf_out = os.path.join(
+        output_dir,
+        f"CV_{safe_name}_{safe_plantilla}_{timestamp}.pdf"
+    )
 
     # Limpiar archivos antiguos
     if os.path.exists(docx_out):
