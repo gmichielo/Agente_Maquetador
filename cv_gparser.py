@@ -66,12 +66,15 @@ Además, el campo "experiencia_formateada" debe ser
 la concatenación de todos los elementos de "experiencia"
 separados por DOS saltos de línea.
 
+REGLAS DE DIVERSOS ASPECTOS:
 En la parte de provincia_pais obivamente si el CV lo indica pues colocar esa informacion, pero el
 caso que no lo de pues hacer una estimacion por datos relevantes (educacion, experiencia laboral) e indicar con [Estimado].
 Cualquier experiencia o educacion que haga referencia que esta en la actualidad (current, present,actualidad,etc...) tiene mas peso la ubicacion de esa
 
 En la parte de areas_especializacion pues si el CV lo indica pues colocar esa informacion, pero el
 caso que no lo de pues hacer una estimacion por datos relevantes (habilidades, experiencias laborales, proyectos) e indicar con [Estimado]
+
+En la seccion de Skills simpre delvolver en este estilo (Grupo: Skills), Ejemplos: Herramientas: Git, Microsoft 365; Lenguajes: C#, Python
 
 CV A ANALIZAR:
 \"\"\"

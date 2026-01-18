@@ -84,7 +84,7 @@ def index():
         clean_text = rebuild_structure(raw_text)
 
         cv_json = parse_cv_with_gpt(clean_text)
-        cv_json = adapt_gpt_cv_to_engine(cv_json)
+        cv_json = adapt_gpt_cv_to_engine(cv_json, plantilla_nombre)
         
         print("✅ CV parseado:")
         print(cv_json)

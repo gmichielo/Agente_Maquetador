@@ -192,25 +192,31 @@ def format_proyectos(lines):
 def clean_bullets(lines):
     return [re.sub(r'^[•\-\*]\s*', '', l) for l in lines]
 
-# 4. DOCX / PDF
 def cv_json_to_docx_data(cv):
     return {
-        "NOMBRE": cv["nombre"],
-        "EMAIL": cv["contacto"]["email"],
-        "TELEFONO": cv["contacto"]["telefono"],
-        "GITHUB": cv["contacto"]["github"],
-        "LINKEDIN": cv["contacto"]["linkedin"],
-        "UBI": cv.get("contacto", {}).get("provincia_pais", ""),
-        "PERFIL": cv["perfil"],
-        "ESPECIALIZACION": cv.get("areas_especializacion", ""),
-        "SKILLS": " | ".join(cv["skills"]),
-        "FORMACION": "\n".join(cv["educacion"]),
-        "EDUCACION": "\n".join(cv["educacion"]),
-        "CERTIFICACIONES": "\n".join(cv["certificaciones"]),
-        "EXPERIENCIA": cv["experiencia"],
-        "EXPERIENCIA_PLANTILLA": cv["experiencia_formateada"],
-        "IDIOMAS": "\n".join(f"• {k}: {v}" for k, v in cv["idiomas"].items()),
-        "PROYECTOS": cv.get("proyectos_formateados", "")
+        "NOMBRE": cv.get("nombre") or "No detectado",
+        "EMAIL": cv.get("contacto", {}).get("email") or "No detectado",
+        "TELEFONO": cv.get("contacto", {}).get("telefono") or "No detectado",
+        "GITHUB": cv.get("contacto", {}).get("github") or "No detectado",
+        "LINKEDIN": cv.get("contacto", {}).get("linkedin") or "No detectado",
+        "UBI": cv.get("contacto", {}).get("provincia_pais") or "No detectado",
+
+        "PERFIL": cv.get("perfil") or "No detectado",
+        "ESPECIALIZACION": cv.get("areas_especializacion") or "No detectado",
+
+        "SKILLS": " | ".join(cv.get("skills", [])) or "No detectado",
+        "FORMACION": "\n".join(cv.get("educacion", [])) or "No detectado",
+        "EDUCACION": "\n".join(cv.get("educacion", [])) or "No detectado",
+        "CERTIFICACIONES": "\n".join(cv.get("certificaciones", [])) or "No detectado",
+
+        "EXPERIENCIA": cv.get("experiencia") or "No detectado",
+        "EXPERIENCIA_PLANTILLA": cv.get("experiencia_formateada") or "No detectado",
+
+        "IDIOMAS": (
+            "\n".join(f"• {k}: {v}" for k, v in cv.get("idiomas", {}).items())
+        ) or "No detectado",
+
+        "PROYECTOS": cv.get("proyectos_formateados") or "No detectado"
     }
 
 def is_empty_value(v):
@@ -223,8 +229,13 @@ def is_empty_value(v):
     return False
 
 def replace_placeholders(doc, data, empty_text=""):
-    # Parrafos
-    for p in doc.paragraphs:
+    def delete_paragraph(paragraph):
+        p = paragraph._element
+        p.getparent().remove(p)
+        paragraph._p = paragraph._element = None
+
+    # --------- PÁRRAFOS ---------
+    for p in list(doc.paragraphs):  # 👈 list() importante
         full_text = p.text
 
         for k, v in data.items():
@@ -234,20 +245,20 @@ def replace_placeholders(doc, data, empty_text=""):
                 continue
 
             if is_empty_value(v):
-                # Si el parrafo solo contiene el placeholder para luego borrar parrafo
+                # 👉 Si el párrafo SOLO tiene el placeholder → eliminar línea
                 if full_text.strip() == placeholder:
-                    p.text = ""
+                    delete_paragraph(p)
+                    break
                 else:
-                    # Si esta mezclado con texto pues reemplazar por texto alternativo
                     p.text = full_text.replace(placeholder, empty_text)
             else:
                 p.text = full_text.replace(placeholder, str(v))
 
-    # Tablas
-    for t in doc.tables:
-        for r in t.rows:
-            for c in r.cells:
-                for p in c.paragraphs:
+    # --------- TABLAS ---------
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for p in list(cell.paragraphs):
                     full_text = p.text
 
                     for k, v in data.items():
@@ -258,11 +269,13 @@ def replace_placeholders(doc, data, empty_text=""):
 
                         if is_empty_value(v):
                             if full_text.strip() == placeholder:
-                                p.text = ""
+                                delete_paragraph(p)
+                                break
                             else:
                                 p.text = full_text.replace(placeholder, empty_text)
                         else:
                             p.text = full_text.replace(placeholder, str(v))
+
 
 def replace_placeholders_preserve_style(doc, data, empty_text=""):
     def replace_in_runs(runs, data):

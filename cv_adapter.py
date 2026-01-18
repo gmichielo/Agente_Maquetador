@@ -1,4 +1,69 @@
-def adapt_gpt_cv_to_engine(cv: dict) -> dict:
+import re
+
+def parse_dta_experience_block(block: str) -> dict:
+    lines = [l.strip() for l in block.split("\n") if l.strip()]
+
+    data = {
+        "empresa": "",
+        "ubicacion": "",
+        "puesto": "",
+        "fecha_inicio": "",
+        "fecha_fin": "",
+        "funciones": []
+    }
+
+    if lines:
+        # Caso MM/YYYY - MM/YYYY | MM/YYYY - CURRENT
+        if re.match(r"\d{2}/\d{4}", lines[0]):
+            fechas = re.split(r"\s*-\s*", lines[0], maxsplit=1)
+            data["fecha_inicio"] = fechas[0].strip()
+            data["fecha_fin"] = fechas[1].strip() if len(fechas) > 1 else ""
+
+        # Caso solo año → normalizamos
+        elif re.match(r"\d{4}$", lines[0]):
+            data["fecha_inicio"] = f"01/{lines[0]}"
+            data["fecha_fin"] = f"12/{lines[0]}"
+
+    for l in lines[1:]:
+        if l.startswith("Empresa:"):
+            data["empresa"] = l.replace("Empresa:", "").strip()
+        elif l.startswith("Puesto:"):
+            data["puesto"] = l.replace("Puesto:", "").strip()
+        elif l.startswith("•"):
+            text = l.replace("•", "").strip()
+            if text.lower() != "funciones:":
+                data["funciones"].append(text)
+
+    return data
+
+def format_experience_dta(exp: dict) -> str:
+    bloque = [
+        f"{exp['fecha_inicio']} - {exp['fecha_fin']}",
+        f"Empresa: {exp['empresa']}",
+        f"Puesto: {exp['puesto']}",
+        "Funciones:"
+    ]
+    bloque += [f"• {f}" for f in exp["funciones"]]
+    return "\n".join(bloque)
+
+
+def format_experience_europass(exp: dict) -> str:
+    header = f"{exp['empresa']} - {exp.get('ubicacion', '').strip()}"
+    fechas = f"{exp['fecha_inicio']} - {exp['fecha_fin']}"
+    bloque = [
+        header.strip(" -"),
+        f"{exp['puesto']} - {fechas}",
+    ]
+    bloque += [f"    • {f}" for f in exp["funciones"]]
+    return "\n".join(bloque)
+
+
+EXPERIENCE_FORMATTERS = {
+    "Plantilla-DTA": format_experience_dta,
+    "Plantilla-EUROPASS": format_experience_europass,
+}
+
+def adapt_gpt_cv_to_engine(cv: dict, plantilla_nombre="Plantilla-DTA") -> dict:
     """
     Normaliza el CV GPT al formato esperado por cv_engine
     """
@@ -17,37 +82,25 @@ def adapt_gpt_cv_to_engine(cv: dict) -> dict:
             ]
 
     # Experiencia (Dict a formato de plantilla)
-    if cv.get("experiencia") and isinstance(cv["experiencia"], list):
+    experiencias_struct = []
 
-        # CASO 1: experiencia estructurada (dict)
-        if cv["experiencia"] and isinstance(cv["experiencia"][0], dict):
-            bloques = []
+    if cv.get("experiencia"):
+        for bloque in cv["experiencia"]:
+            if isinstance(bloque, str):
+                experiencias_struct.append(
+                    parse_dta_experience_block(bloque)
+                )
 
-            for e in cv["experiencia"]:
-                bloque = []
+    formatter = EXPERIENCE_FORMATTERS.get(
+        plantilla_nombre,
+        format_experience_dta  # fallback
+    )
 
-                if e.get("periodo"):
-                    bloque.append(e["periodo"])
+    bloques_formateados = [
+        formatter(e) for e in experiencias_struct
+    ]
 
-                if e.get("empresa"):
-                    bloque.append(f"Empresa: {e['empresa']}")
-
-                if e.get("puesto"):
-                    bloque.append(f"Puesto: {e['puesto']}")
-
-                if e.get("responsabilidades"):
-                    bloque.append("Funciones:")
-                    for f in e["responsabilidades"]:
-                        bloque.append(f"• {f}")
-
-                bloques.append("\n".join(bloque))
-
-            cv["experiencia"] = bloques
-            cv["experiencia_formateada"] = "\n\n".join(bloques)
-
-        # CASO 2: experiencia ya en texto plano
-        elif cv["experiencia"] and isinstance(cv["experiencia"][0], str):
-            cv["experiencia_formateada"] = "\n\n".join(cv["experiencia"])
+    cv["experiencia_formateada"] = "\n\n".join(bloques_formateados)
 
     # Fallback de seguridad
     if not cv.get("experiencia_formateada"):
