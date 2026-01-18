@@ -12,8 +12,8 @@ import pythoncom
 
 # 1. UTILIDADES
 def normalize_text(text):
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(c for c in text if not unicodedata.combining(c))
+    # Mantiene acentos y caracteres especiales
+    text = unicodedata.normalize("NFC", text)
     text = re.sub(r'[ \t]+', ' ', text)
     text = re.sub(r'\n{2,}', '\n', text)
     return text.strip()
@@ -194,29 +194,29 @@ def clean_bullets(lines):
 
 def cv_json_to_docx_data(cv):
     return {
-        "NOMBRE": cv.get("nombre") or "No detectado",
-        "EMAIL": cv.get("contacto", {}).get("email") or "No detectado",
-        "TELEFONO": cv.get("contacto", {}).get("telefono") or "No detectado",
-        "GITHUB": cv.get("contacto", {}).get("github") or "No detectado",
-        "LINKEDIN": cv.get("contacto", {}).get("linkedin") or "No detectado",
-        "UBI": cv.get("contacto", {}).get("provincia_pais") or "No detectado",
+        "NOMBRE": cv.get("nombre") or "Nombre No detectado",
+        "EMAIL": cv.get("contacto", {}).get("email") or "Email No detectado",
+        "TELEFONO": cv.get("contacto", {}).get("telefono") or "Telefono No detectado",
+        "GITHUB": cv.get("contacto", {}).get("github") or "Github No detectado",
+        "LINKEDIN": cv.get("contacto", {}).get("linkedin") or "Linkedin No detectado",
+        "UBI": cv.get("contacto", {}).get("provincia_pais") or "Ubicacion No detectado",
 
-        "PERFIL": cv.get("perfil") or "No detectado",
-        "ESPECIALIZACION": cv.get("areas_especializacion") or "No detectado",
+        "PERFIL": cv.get("perfil") or "Perfil No detectado",
+        "ESPECIALIZACION": cv.get("areas_especializacion") or "Especializacion No detectado",
 
-        "SKILLS": " | ".join(cv.get("skills", [])) or "No detectado",
-        "FORMACION": "\n".join(cv.get("educacion", [])) or "No detectado",
-        "EDUCACION": "\n".join(cv.get("educacion", [])) or "No detectado",
-        "CERTIFICACIONES": "\n".join(cv.get("certificaciones", [])) or "No detectado",
+        "SKILLS": " | ".join(cv.get("skills", [])) or "Skills No detectado",
+        "FORMACION": "\n".join(cv.get("educacion", [])) or "Formacion No detectado",
+        "EDUCACION": "\n".join(cv.get("educacion", [])) or "Educacion No detectado",
+        "CERTIFICACIONES": "\n".join(cv.get("certificaciones", [])) or "Certificacion No detectado",
 
-        "EXPERIENCIA": cv.get("experiencia") or "No detectado",
-        "EXPERIENCIA_PLANTILLA": cv.get("experiencia_formateada") or "No detectado",
+        "EXPERIENCIA": cv.get("experiencia") or "Esperiencia No detectado",
+        "EXPERIENCIA_PLANTILLA": cv.get("experiencia_formateada") or "ExperienciaP No detectado",
 
         "IDIOMAS": (
             "\n".join(f"• {k}: {v}" for k, v in cv.get("idiomas", {}).items())
-        ) or "No detectado",
+        ) or "Idiomas No detectado",
 
-        "PROYECTOS": cv.get("proyectos_formateados") or "No detectado"
+        "PROYECTOS": cv.get("proyectos_formateados") or "Proyectos No detectado"
     }
 
 def is_empty_value(v):
