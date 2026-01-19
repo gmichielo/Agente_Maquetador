@@ -20,7 +20,7 @@ def resource_path(relative_path):
 def open_browser():
     webbrowser.open("http://127.0.0.1:5000")
 
-BASE_DIR = os.path.abspath(".")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 OUTPUT_FOLDER = os.path.join(BASE_DIR, "output")
@@ -70,11 +70,10 @@ def index():
 
         plantilla_info = PLANTILLAS.get(plantilla_id)
 
-        plantilla_path = resource_path(
-            os.path.join(
-                "templates_docx",
-                plantilla_info["file"]
-            )
+        plantilla_path = os.path.join(
+            BASE_DIR,
+            "templates_docx",
+            plantilla_info["file"]
         )
 
         plantilla_nombre = plantilla_info["name"]

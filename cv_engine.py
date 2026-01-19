@@ -194,29 +194,28 @@ def clean_bullets(lines):
 
 def cv_json_to_docx_data(cv):
     return {
-        "NOMBRE": cv.get("nombre") or "Nombre No detectado",
-        "EMAIL": cv.get("contacto", {}).get("email") or "Email No detectado",
-        "TELEFONO": cv.get("contacto", {}).get("telefono") or "Telefono No detectado",
-        "GITHUB": cv.get("contacto", {}).get("github") or "Github No detectado",
-        "LINKEDIN": cv.get("contacto", {}).get("linkedin") or "Linkedin No detectado",
-        "UBI": cv.get("contacto", {}).get("provincia_pais") or "Ubicacion No detectado",
+        "NOMBRE": cv.get("nombre", ""),
+        "EMAIL": cv.get("contacto", {}).get("email", ""),
+        "TELEFONO": cv.get("contacto", {}).get("telefono", ""),
+        "GITHUB": cv.get("contacto", {}).get("github", ""),
+        "LINKEDIN": cv.get("contacto", {}).get("linkedin", ""),
+        "UBI": cv.get("contacto", {}).get("provincia_pais", ""),
 
-        "PERFIL": cv.get("perfil") or "Perfil No detectado",
-        "ESPECIALIZACION": cv.get("areas_especializacion") or "Especializacion No detectado",
+        "PERFIL": cv.get("perfil", ""),
+        "ESPECIALIZACION": cv.get("areas_especializacion", ""),
 
-        "SKILLS": " | ".join(cv.get("skills", [])) or "Skills No detectado",
-        "FORMACION": "\n".join(cv.get("educacion", [])) or "Formacion No detectado",
-        "EDUCACION": "\n".join(cv.get("educacion", [])) or "Educacion No detectado",
-        "CERTIFICACIONES": "\n".join(cv.get("certificaciones", [])) or "Certificacion No detectado",
+        "SKILLS": " | ".join(cv.get("skills", [])),
+        "FORMACION": "\n".join(cv.get("educacion", [])),
+        "EDUCACION": "\n".join(cv.get("educacion", [])),
+        "CERTIFICACIONES": "\n".join(cv.get("certificaciones", [])),
 
-        "EXPERIENCIA": cv.get("experiencia") or "Esperiencia No detectado",
-        "EXPERIENCIA_PLANTILLA": cv.get("experiencia_formateada") or "ExperienciaP No detectado",
+        "EXPERIENCIA_PLANTILLA": cv.get("experiencia_formateada", ""),
 
-        "IDIOMAS": (
-            "\n".join(f"• {k}: {v}" for k, v in cv.get("idiomas", {}).items())
-        ) or "Idiomas No detectado",
+        "IDIOMAS": "\n".join(
+            f"• {k}: {v}" for k, v in cv.get("idiomas", {}).items()
+        ),
 
-        "PROYECTOS": cv.get("proyectos_formateados") or "Proyectos No detectado"
+        "PROYECTOS": cv.get("proyectos_formateados", "")
     }
 
 def is_empty_value(v):
@@ -226,7 +225,76 @@ def is_empty_value(v):
         return True
     if isinstance(v, (list, dict)) and len(v) == 0:
         return True
-    return False
+    return 
+
+def remove_inline_empty_fields(doc, data):
+    def delete_paragraph(p):
+        if p._p is not None:
+            el = p._element
+            el.getparent().remove(el)
+            p._p = p._element = None
+
+    for p in list(doc.paragraphs):
+        if p._p is None:
+            continue
+
+        text = p.text.strip()
+
+        for k, v in data.items():
+            placeholder = f"{{{{{k}}}}}"
+
+            # placeholder inline + valor vacío → borrar línea
+            if placeholder in text and is_empty_value(v):
+                delete_paragraph(p)
+                break
+
+def remove_empty_blocks(doc, data):
+    def delete_paragraph(p):
+        if p._p is not None:
+            el = p._element
+            el.getparent().remove(el)
+            p._p = p._element = None
+
+    paragraphs = list(doc.paragraphs)
+    active_key = None
+    block_paragraphs = []
+    start_marker = None
+
+    for p in paragraphs:
+        if p._p is None:
+            continue
+
+        text = p.text.strip()
+
+        # -------- INICIO BLOQUE --------
+        if text.startswith("{{#") and text.endswith("}}"):
+            active_key = text[3:-2]
+            block_paragraphs = []
+            start_marker = p
+            continue
+
+        # -------- FIN BLOQUE --------
+        if text.startswith("{{/") and text.endswith("}}"):
+            end_key = text[3:-2]
+
+            # eliminar SIEMPRE marcadores
+            delete_paragraph(start_marker)
+            delete_paragraph(p)
+
+            # si el bloque estaba vacío → borrar contenido interno
+            if active_key == end_key and is_empty_value(data.get(active_key)):
+                for bp in block_paragraphs:
+                    delete_paragraph(bp)
+
+            # reset
+            active_key = None
+            block_paragraphs = []
+            start_marker = None
+            continue
+
+        # -------- CONTENIDO BLOQUE --------
+        if active_key:
+            block_paragraphs.append(p)
 
 def replace_placeholders(doc, data, empty_text=""):
     def delete_paragraph(paragraph):
@@ -234,9 +302,10 @@ def replace_placeholders(doc, data, empty_text=""):
         p.getparent().remove(p)
         paragraph._p = paragraph._element = None
 
-    # --------- PÁRRAFOS ---------
-    for p in list(doc.paragraphs):  # 👈 list() importante
-        full_text = p.text
+    paragraphs = list(doc.paragraphs)
+
+    for i, p in enumerate(paragraphs):
+        full_text = p.text.strip()
 
         for k, v in data.items():
             placeholder = f"{{{{{k}}}}}"
@@ -244,22 +313,38 @@ def replace_placeholders(doc, data, empty_text=""):
             if placeholder not in full_text:
                 continue
 
+            # -------- CASO: VALOR VACÍO --------
             if is_empty_value(v):
-                # 👉 Si el párrafo SOLO tiene el placeholder → eliminar línea
-                if full_text.strip() == placeholder:
-                    delete_paragraph(p)
-                    break
-                else:
-                    p.text = full_text.replace(placeholder, empty_text)
-            else:
-                p.text = full_text.replace(placeholder, str(v))
 
-    # --------- TABLAS ---------
+                # 1️⃣ Si el párrafo SOLO contiene el placeholder
+                if full_text == placeholder:
+                    delete_paragraph(p)
+
+                    # 2️⃣ Buscar hacia arriba el primer párrafo NO vacío
+                    j = i - 1
+                    while j >= 0:
+                        prev = paragraphs[j]
+                        if prev.text and prev.text.strip():
+                            delete_paragraph(prev)
+                            break
+                        j -= 1
+
+                    break
+
+                # 3️⃣ Placeholder mezclado en texto
+                else:
+                    p.text = p.text.replace(placeholder, empty_text)
+
+            # -------- CASO: CON VALOR --------
+            else:
+                p.text = p.text.replace(placeholder, str(v))
+
+    # -------- TABLAS (sin borrar títulos) --------
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for p in list(cell.paragraphs):
-                    full_text = p.text
+                    full_text = p.text.strip()
 
                     for k, v in data.items():
                         placeholder = f"{{{{{k}}}}}"
@@ -268,13 +353,13 @@ def replace_placeholders(doc, data, empty_text=""):
                             continue
 
                         if is_empty_value(v):
-                            if full_text.strip() == placeholder:
+                            if full_text == placeholder:
                                 delete_paragraph(p)
                                 break
                             else:
-                                p.text = full_text.replace(placeholder, empty_text)
+                                p.text = p.text.replace(placeholder, empty_text)
                         else:
-                            p.text = full_text.replace(placeholder, str(v))
+                            p.text = p.text.replace(placeholder, str(v))
 
 
 def replace_placeholders_preserve_style(doc, data, empty_text=""):
@@ -347,6 +432,8 @@ def generate_cv_from_template(
 
     # Reemplazo de placeholders
     replace_placeholders_preserve_style(doc, data)
+    remove_empty_blocks(doc, data)
+    remove_inline_empty_fields(doc, data)
 
     doc.save(docx_out)
 

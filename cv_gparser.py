@@ -36,6 +36,8 @@ La estructura debe ser EXACTAMENTE esta:
 }}
 
 REGLAS IMPORTANTES:
+- Si no es un documento valido para consideralo un CV no lo proceses, devuelve el json sin rellenarlo
+- Si no es archivo de un tipo valido (sea pdf, doc, etc) no lo proceses, devuelve el json sin rellenarlo
 - No inventes datos (ESTO SUPER IMPORTANTE)
 - NO SUBAS NINGUN DATO A TU REGISTRO O MEMORIA
 - Mantén el orden original de skills y experiencia
