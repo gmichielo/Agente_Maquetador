@@ -6,7 +6,7 @@ import os
 load_dotenv()
 client = OpenAI()
 
-def parse_cv_with_gpt(cv_text: str) -> dict:
+def parse_cv_with_gpt(cv_text: str, formatos: dict) -> dict:
     prompt = f"""
 Eres un extractor de CVs profesionales.
 Devuelve SOLO JSON válido, sin texto adicional.
@@ -35,6 +35,31 @@ La estructura debe ser EXACTAMENTE esta:
   "proyectos_formateados": ""
 }}
 
+La sección "experiencia" debe devolverse como una LISTA DE OBJETOS con estas claves:
+- fecha_inicio
+- fecha_fin
+- empresa
+- puesto
+- ubicacion
+- funciones (lista de strings)
+
+La sección "educacion" debe devolverse como una LISTA DE OBJETOS con estas claves:
+- fecha_inicio
+- fecha_fin
+- institucion
+- titulo
+- ubicacion
+- nota_final
+
+Además recibirás un formato de experiencia y educación.
+Debes generar:
+
+- experiencia_formateada: LISTA DE STRINGS
+- educacion_formateada: LISTA DE STRINGS
+
+Cada string debe respetar EXACTAMENTE el formato recibido,
+sustituyendo los placeholders {{clave}} por los valores del objeto.
+
 REGLAS IMPORTANTES:
 - Si no es un documento valido para consideralo un CV no lo proceses, devuelve el json sin rellenarlo
 - Si no es archivo de un tipo valido (sea pdf, doc, etc) no lo proceses, devuelve el json sin rellenarlo
@@ -44,17 +69,6 @@ REGLAS IMPORTANTES:
 - Usa bullets • cuando aplique
 - Si una sección no existe, devuélvela vacía
 - No agregues ningún campo extra
-
-La sección "experiencia" DEBE devolverse como una LISTA DE STRINGS.
-Cada string debe tener EXACTAMENTE este formato:
-
-MM/YYYY - MM/YYYY
-Empresa: NOMBRE_EMPRESA
-Puesto: NOMBRE_PUESTO
-Funciones:
-• Función 1
-• Función 2
-• Función 3
 
 REGLAS:
 - Usa siempre "Empresa:", "Puesto:" y "Funciones:"
@@ -80,14 +94,14 @@ En la seccion de Skills simpre delvolver en este estilo (Grupo: Skills), Ejemplo
 
 CV A ANALIZAR:
 \"\"\"
-{cv_text}
+{cv_text} y usa este formato para la experiencia {formatos.get("EXPERIENCIA", "")} y este para la educacion {formatos.get("EDUCACION", "")}
 \"\"\"
 """
 
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "Eres un sistema ATS experto en parsing de CVs."},
+            {"role": "system", "content": "Eres un sistema ATS experto para un maquetador de CVs que realiza parsing de CVs."},
             {"role": "user", "content": prompt}
         ],
         response_format={"type": "json_object"}

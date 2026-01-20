@@ -1,11 +1,12 @@
 from flask import Flask, render_template, request, send_file
+from docx import Document
 import os
 import threading
 import webbrowser
 import sys
 from cv_gparser import parse_cv_with_gpt
 from cv_adapter import adapt_gpt_cv_to_engine
-from cv_engine import read_pdf, rebuild_structure, generate_cv_from_template
+from cv_engine import read_pdf, rebuild_structure, generate_cv_from_template, extract_format_blocks
 
 app = Flask(__name__)
 
@@ -82,7 +83,16 @@ def index():
         raw_text = read_pdf(pdf_path)
         clean_text = rebuild_structure(raw_text)
 
-        cv_json = parse_cv_with_gpt(clean_text)
+        # 1️⃣ Cargar plantilla
+        doc = Document(plantilla_path)
+
+        # 2️⃣ Extraer formatos
+        format_blocks = extract_format_blocks(doc)
+
+        # 3️⃣ Llamar a GPT con CV + formatos
+        cv_json = parse_cv_with_gpt(clean_text, format_blocks)
+
+        # 4️⃣ Adaptación mínima
         cv_json = adapt_gpt_cv_to_engine(cv_json, plantilla_nombre)
         
         print("✅ CV parseado:")

@@ -387,6 +387,60 @@ def replace_placeholders_preserve_style(doc, data, empty_text=""):
                 for p in cell.paragraphs:
                     replace_in_runs(p.runs, data)
 
+def extract_format_blocks(doc):
+    blocks = {}
+    paragraphs = list(doc.paragraphs)
+
+    active_key = None
+    text_buffer = []
+    para_buffer = []
+    start_p = None
+
+    def delete_paragraph(p):
+        if p and p._p is not None:
+            el = p._element
+            el.getparent().remove(el)
+            p._p = p._element = None
+
+    for p in paragraphs:
+        if p._p is None:
+            continue
+
+        text = p.text.strip()
+
+        # -------- INICIO --------
+        if text.startswith("{{_") and text.endswith("}}"):
+            active_key = text[3:-2]
+            text_buffer = []
+            para_buffer = []
+            start_p = p
+            continue
+
+        # -------- FIN --------
+        if text.startswith("{{-") and text.endswith("}}") and active_key:
+            end_key = text[3:-2]
+
+            if end_key == active_key:
+                blocks[active_key] = "\n".join(text_buffer)
+
+                # borrar bloque completo
+                delete_paragraph(start_p)
+                delete_paragraph(p)
+                for bp in para_buffer:
+                    delete_paragraph(bp)
+
+            active_key = None
+            text_buffer = []
+            para_buffer = []
+            start_p = None
+            continue
+
+        # -------- CONTENIDO --------
+        if active_key:
+            text_buffer.append(p.text)
+            para_buffer.append(p)
+
+    return blocks
 
 def generate_cv_from_template(
     template_path,
@@ -427,6 +481,10 @@ def generate_cv_from_template(
     # Copiar plantilla y reemplazar placeholders
     shutil.copy(template_path, docx_out)
     doc = Document(docx_out)
+
+    format_blocks = extract_format_blocks(doc)
+
+    cv_json["_formatos"] = format_blocks
 
     data = cv_json_to_docx_data(cv_json)
 

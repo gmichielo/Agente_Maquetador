@@ -161,51 +161,25 @@ EDUCATION_FORMATTERS = {
     "Plantilla-EUROPASS": format_education_europass,
 }
 
-def adapt_gpt_cv_to_engine(cv: dict, plantilla_nombre="Plantilla-DTA") -> dict:
-    """
-    Normaliza el CV GPT al formato esperado por cv_engine
-    """
-    educacion_struct = []
+def adapt_gpt_cv_to_engine(cv: dict, plantilla_nombre=None) -> dict:
+    # -------- EXPERIENCIA --------
+    exp_fmt = cv.get("experiencia_formateada", [])
 
-    if cv.get("educacion"):
-        for bloque in cv["educacion"]:
-            if isinstance(bloque, str):
-                educacion_struct.append(
-                    parse_education_block(bloque)
-                )
-
-    formatter_ed = EDUCATION_FORMATTERS.get(
-        plantilla_nombre,
-        format_education_dta
-    )
-
-    cv["educacion"] = [
-        formatter_ed(e) for e in educacion_struct
-    ]
-
-    # Experiencia (Dict a formato de plantilla)
-    experiencias_struct = []
-
-    if cv.get("experiencia"):
-        for bloque in cv["experiencia"]:
-            if isinstance(bloque, str):
-                experiencias_struct.append(
-                    parse_dta_experience_block(bloque)
-                )
-
-    formatter = EXPERIENCE_FORMATTERS.get(
-        plantilla_nombre,
-        format_experience_dta  # fallback
-    )
-
-    bloques_formateados = [
-        formatter(e) for e in experiencias_struct
-    ]
-
-    cv["experiencia_formateada"] = "\n\n".join(bloques_formateados)
-
-    # Fallback de seguridad
-    if not cv.get("experiencia_formateada"):
+    if isinstance(exp_fmt, list):
+        cv["experiencia_formateada"] = "\n\n".join(exp_fmt)
+    elif isinstance(exp_fmt, str):
+        cv["experiencia_formateada"] = exp_fmt
+    else:
         cv["experiencia_formateada"] = ""
+
+    # -------- EDUCACION --------
+    edu_fmt = cv.get("educacion_formateada", [])
+
+    if isinstance(edu_fmt, list):
+        cv["educacion"] = edu_fmt
+    elif isinstance(edu_fmt, str):
+        cv["educacion"] = [edu_fmt]
+    else:
+        cv["educacion"] = []
 
     return cv
