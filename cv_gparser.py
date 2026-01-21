@@ -29,6 +29,7 @@ La estructura debe ser EXACTAMENTE esta:
   "experiencia": [],
   "experiencia_formateada": "",
   "educacion": [],
+  "educacion_formateada": "",
   "certificaciones": [],
   "idiomas": {{}},
   "proyectos": [],
@@ -51,6 +52,9 @@ La sección "educacion" debe devolverse como una LISTA DE OBJETOS con estas clav
 - ubicacion
 - nota_final
 
+REGLA GENERAL DE ESAS SECCIONES: 
+Si alguna no se encutra o no existe por favor no la coloques pero tampoco dejes la linea en blanco, hazla coherente
+
 Además recibirás un formato de experiencia y educación.
 Debes generar:
 
@@ -65,7 +69,7 @@ REGLAS IMPORTANTES:
 - Si no es archivo de un tipo valido (sea pdf, doc, etc) no lo proceses, devuelve el json sin rellenarlo
 - No inventes datos (ESTO SUPER IMPORTANTE)
 - NO SUBAS NINGUN DATO A TU REGISTRO O MEMORIA
-- Mantén el orden original de skills y experiencia
+- Mantén el orden original de skills
 - Usa bullets • cuando aplique
 - Si una sección no existe, devuélvela vacía
 - No agregues ningún campo extra
@@ -82,6 +86,10 @@ Además, el campo "experiencia_formateada" debe ser
 la concatenación de todos los elementos de "experiencia"
 separados por DOS saltos de línea.
 
+Además, el campo "educacion_formateada" debe ser
+la concatenación de todos los elementos de "educacion"
+separados por DOS saltos de línea.
+
 REGLAS DE DIVERSOS ASPECTOS:
 En la parte de provincia_pais obivamente si el CV lo indica pues colocar esa informacion, pero el
 caso que no lo de pues hacer una estimacion por datos relevantes (educacion, experiencia laboral) e indicar con [Estimado].
@@ -94,8 +102,24 @@ En la seccion de Skills simpre delvolver en este estilo (Grupo: Skills), Ejemplo
 
 CV A ANALIZAR:
 \"\"\"
-{cv_text} y usa este formato para la experiencia {formatos.get("EXPERIENCIA", "")} y este para la educacion {formatos.get("EDUCACION", "")}
-\"\"\"
+FORMATO EXACTO PARA EXPERIENCIA (OBLIGATORIO):
+""
+{formatos.get("EXPERIENCIA", "")}
+""
+
+FORMATO EXACTO PARA EDUCACION (OBLIGATORIO):
+""
+{formatos.get("EDUCACION", "")}
+""
+
+REGLAS DE FORMATO:
+- Usa SOLO el formato correspondiente a cada sección
+- NO mezcles formatos
+- NO cambies etiquetas
+- NO agregues texto fuera del formato
+- Si una clave no existe, elimina la línea completa
+
+{cv_text}
 """
 
     response = client.chat.completions.create(

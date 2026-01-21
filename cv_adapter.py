@@ -164,22 +164,16 @@ EDUCATION_FORMATTERS = {
 def adapt_gpt_cv_to_engine(cv: dict, plantilla_nombre=None) -> dict:
     # -------- EXPERIENCIA --------
     exp_fmt = cv.get("experiencia_formateada", [])
-
     if isinstance(exp_fmt, list):
         cv["experiencia_formateada"] = "\n\n".join(exp_fmt)
-    elif isinstance(exp_fmt, str):
-        cv["experiencia_formateada"] = exp_fmt
     else:
-        cv["experiencia_formateada"] = ""
+        cv["experiencia_formateada"] = exp_fmt or ""
 
     # -------- EDUCACION --------
     edu_fmt = cv.get("educacion_formateada", [])
-
     if isinstance(edu_fmt, list):
-        cv["educacion"] = edu_fmt
-    elif isinstance(edu_fmt, str):
-        cv["educacion"] = [edu_fmt]
+        cv["educacion"] = "\n\n".join(edu_fmt)
     else:
-        cv["educacion"] = []
+        cv["educacion"] = edu_fmt or ""
 
     return cv

@@ -206,7 +206,7 @@ def cv_json_to_docx_data(cv):
 
         "SKILLS": " | ".join(cv.get("skills", [])),
         "FORMACION": "\n".join(cv.get("educacion", [])),
-        "EDUCACION": "\n".join(cv.get("educacion", [])),
+        "EDUCACION": cv.get("educacion_formateada", ""),
         "CERTIFICACIONES": "\n".join(cv.get("certificaciones", [])),
 
         "EXPERIENCIA_PLANTILLA": cv.get("experiencia_formateada", ""),

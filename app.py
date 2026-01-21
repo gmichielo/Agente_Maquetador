@@ -88,6 +88,7 @@ def index():
 
         # 2️⃣ Extraer formatos
         format_blocks = extract_format_blocks(doc)
+        print (format_blocks)
 
         # 3️⃣ Llamar a GPT con CV + formatos
         cv_json = parse_cv_with_gpt(clean_text, format_blocks)
