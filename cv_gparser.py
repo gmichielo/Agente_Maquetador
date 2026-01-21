@@ -99,6 +99,7 @@ En la parte de areas_especializacion pues si el CV lo indica pues colocar esa in
 caso que no lo de pues hacer una estimacion por datos relevantes (habilidades, experiencias laborales, proyectos) e indicar con [Estimado]
 
 En la seccion de Skills simpre delvolver en este estilo (Grupo: Skills), Ejemplos: Herramientas: Git, Microsoft 365; Lenguajes: C#, Python
+En skills deben estar tambien tras un salto de linea el apartado de soft skills
 
 CV A ANALIZAR:
 \"\"\"
