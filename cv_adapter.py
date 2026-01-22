@@ -150,17 +150,6 @@ def format_education_europass(ed: dict) -> str:
 
     return "\n".join(bloque)
 
-
-EXPERIENCE_FORMATTERS = {
-    "Plantilla-DTA": format_experience_dta,
-    "Plantilla-EUROPASS": format_experience_europass,
-}
-
-EDUCATION_FORMATTERS = {
-    "Plantilla-DTA": format_education_dta,
-    "Plantilla-EUROPASS": format_education_europass,
-}
-
 def adapt_gpt_cv_to_engine(cv: dict, plantilla_nombre=None) -> dict:
     # -------- EXPERIENCIA --------
     exp_fmt = cv.get("experiencia_formateada", [])

@@ -2,6 +2,7 @@ import pdfplumber
 from docx import Document
 from docx2pdf import convert
 import platform
+import time
 import re
 import unicodedata
 import shutil
@@ -202,7 +203,10 @@ def cv_json_to_docx_data(cv):
         "UBI": cv.get("contacto", {}).get("provincia_pais", ""),
 
         "PERFIL": cv.get("perfil", ""),
+        "RESUMEN": cv.get("resumen", ""),
+        "RESUMENP": cv.get("resumen_profesional", ""),
         "ESPECIALIZACION": cv.get("areas_especializacion", ""),
+        "ANYOS": cv.get("anyos", ""),
 
         "SKILLS": " | ".join(cv.get("skills", [])),
         "FORMACION": "\n".join(cv.get("educacion", [])),
@@ -490,7 +494,9 @@ def generate_cv_from_template(
 
     # Reemplazo de placeholders
     replace_placeholders_preserve_style(doc, data)
+    time.sleep(2) 
     remove_empty_blocks(doc, data)
+    time.sleep(2) 
     remove_inline_empty_fields(doc, data)
 
     doc.save(docx_out)

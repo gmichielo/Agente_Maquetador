@@ -32,19 +32,47 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 PLANTILLAS = {
     "1": {
-        "file": "Plantilla1.docx",
+        "file": "PlantillaDTA.docx",
         "name": "Plantilla-DTA"
     },
     "2": {
-        "file": "Plantilla2.docx",
+        "file": "PlantillaEUROPASS.docx",
         "name": "Plantilla-EUROPASS"
     },
     "3": {
-        "file": "Plantilla3.docx",
-        "name": "Plantilla-Testeo"
+        "file": "PlantillaIBM.docx",
+        "name": "Plantilla-IBM"
     },
     "4": {
-        "file": "Plantilla4.docx",
+        "file": "PlantillaNNT.docx",
+        "name": "Plantilla-NNT"
+    },
+    "5": {
+        "file": "PlantillaNNT_S.docx",
+        "name": "Plantilla-NNT_S"
+    },
+    "6": {
+        "file": "PlantillaINETUM.docx",
+        "name": "Plantilla-INETUM"
+    },
+    "7": {
+        "file": "PlantillaRICOH.docx",
+        "name": "Plantilla-RICOH"
+    },
+    "8": {
+        "file": "PlantillaSAPIENS.docx",
+        "name": "Plantilla-SAPIENS"
+    },
+    "9": {
+        "file": "PlantillaACCENTURE.docx",
+        "name": "Plantilla-ACCENTURE"
+    },
+    "10": {
+        "file": "PlantillaTesteo.docx",
+        "name": "Plantilla-Testeo"
+    },
+    "11": {
+        "file": "PlantillaBasica.docx",
         "name": "Plantilla-Basica"
     }
 }
