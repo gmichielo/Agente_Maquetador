@@ -660,6 +660,25 @@ def generate_cv_from_template(
                         parent.insert(idx, xml_clonado)
                         idx += 1
 
+                    # -------------------------
+                # FUNCIONES (UNA DEBAJO DE OTRA)
+                # -------------------------
+                for funcion in exp.get("funciones", []):
+                    for _, xml in bloque_func:
+                        xml_clonado = deepcopy(xml)
+
+                        reemplazar_variables_xml(
+                            xml_clonado,
+                            {"funcion": funcion}
+                        )
+
+                        parent.insert(idx, xml_clonado)
+                        idx += 1
+
+                p_empty = OxmlElement("w:p")
+                parent.insert(idx, p_empty)
+                idx += 1
+
     # -------------------------------------------------
     # EDUCACION (BLOQUE VISUAL, PEGADO EN PLACEHOLDER)
     # -------------------------------------------------
