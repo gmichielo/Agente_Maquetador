@@ -1,6 +1,11 @@
 import pdfplumber
 from docx import Document
 from docx2pdf import convert
+from copy import deepcopy
+from docx.table import _Row,Table
+from docx.oxml.text.run import CT_Text
+from docx.oxml import OxmlElement
+from docx.text.paragraph import Paragraph
 import platform
 import time
 import re
@@ -28,6 +33,91 @@ def read_pdf(path):
             if txt:
                 blocks.append(txt)
     return "\n".join(blocks)
+
+
+def reemplazar_variables_xml(xml_element, data):
+    """
+    Reemplaza placeholders SOLO en nodos CT_Text
+    (únicos que permiten escritura segura)
+    """
+    for node in xml_element.iter():
+        if isinstance(node, CT_Text) and node.text:
+            for k, v in data.items():
+                placeholder = f"{{{{{k}}}}}"
+                if placeholder in node.text:
+                    node.text = node.text.replace(placeholder, str(v))    
+
+
+def iterar_bloques(doc):
+    for child in doc.element.body:
+        if child.tag.endswith('}p'):
+            yield Paragraph(child, doc)
+        elif child.tag.endswith('}tbl'):
+            yield Table(child, doc)
+
+
+def guardar_bloque_mixto(doc, inicio, fin):
+    bloque = []
+    capturar = False
+    inicio_p = None
+    fin_p = None
+    buffer = []
+
+    for elemento in iterar_bloques(doc):
+
+        if isinstance(elemento, Paragraph):
+            texto = elemento.text.strip()
+
+            # --- INICIO ---
+            if inicio in texto:
+                capturar = True
+                inicio_p = elemento
+                continue
+
+            # --- FIN ---
+            if fin in texto and capturar:
+                fin_p = elemento
+                break
+
+            if capturar:
+                buffer.append(elemento)
+                bloque.append(("paragraph", deepcopy(elemento._p)))
+
+        elif isinstance(elemento, Table) and capturar:
+            buffer.append(elemento)
+            bloque.append(("table", deepcopy(elemento._tbl)))
+
+    # -------------------------------
+    # BORRADO REAL DEL DOCUMENTO
+    # -------------------------------
+    def delete_element(el):
+        if isinstance(el, Paragraph) and el._p is not None:
+            el._element.getparent().remove(el._element)
+            el._p = el._element = None
+        elif isinstance(el, Table):
+            el._tbl.getparent().remove(el._tbl)
+
+    # borrar contenido interno
+    for el in buffer:
+        delete_element(el)
+
+    # borrar marcadores INICIO / FIN
+    if inicio_p:
+        delete_element(inicio_p)
+    if fin_p:
+        delete_element(fin_p)
+
+    return bloque
+
+
+def pegar_bloque_con_datos(doc, bloque, lista_datos):
+    body = doc.element.body
+
+    for datos in lista_datos:
+        for _, xml in bloque:
+            xml_clonado = deepcopy(xml)
+            reemplazar_variables_xml(xml_clonado, datos)
+            body.append(xml_clonado)
 
 
 # 2. NORMALIZACION ATS
@@ -209,11 +299,11 @@ def cv_json_to_docx_data(cv):
         "ANYOS": cv.get("anyos", ""),
 
         "SKILLS": " | ".join(cv.get("skills", [])),
-        "FORMACION": "\n".join(cv.get("educacion", [])),
-        "EDUCACION": cv.get("educacion_formateada", ""),
+        #"FORMACION": "\n".join(cv.get("educacion", [])),
+        "EDUCACION": cv.get("educacion", ""),
         "CERTIFICACIONES": "\n".join(cv.get("certificaciones", [])),
 
-        "EXPERIENCIA_PLANTILLA": cv.get("experiencia_formateada", ""),
+        "EXPERIENCIA_PLANTILLA": cv.get("experiencia", ""),
 
         "IDIOMAS": "\n".join(
             f"• {k}: {v}" for k, v in cv.get("idiomas", {}).items()
@@ -406,13 +496,13 @@ def extract_format_blocks(doc):
             el.getparent().remove(el)
             p._p = p._element = None
 
+    # -------- PÁRRAFOS --------
     for p in paragraphs:
         if p._p is None:
             continue
 
         text = p.text.strip()
 
-        # -------- INICIO --------
         if text.startswith("{{_") and text.endswith("}}"):
             active_key = text[3:-2]
             text_buffer = []
@@ -420,14 +510,12 @@ def extract_format_blocks(doc):
             start_p = p
             continue
 
-        # -------- FIN --------
         if text.startswith("{{-") and text.endswith("}}") and active_key:
             end_key = text[3:-2]
 
             if end_key == active_key:
                 blocks[active_key] = "\n".join(text_buffer)
 
-                # borrar bloque completo
                 delete_paragraph(start_p)
                 delete_paragraph(p)
                 for bp in para_buffer:
@@ -439,12 +527,26 @@ def extract_format_blocks(doc):
             start_p = None
             continue
 
-        # -------- CONTENIDO --------
         if active_key:
             text_buffer.append(p.text)
             para_buffer.append(p)
 
+    # -------- TABLAS (NUEVO) --------
+    for table in doc.tables:
+        for row in table.rows:
+            row_text = " ".join(cell.text.strip() for cell in row.cells)
+
+            if row_text.startswith("{{_") and row_text.endswith("}}"):
+                key = row_text[3:-2]
+                blocks[key] = row
+
     return blocks
+
+def encontrar_parrafo_por_texto(doc, texto):
+    for p in doc.paragraphs:
+        if texto in p.text:
+            return p
+    return None
 
 def generate_cv_from_template(
     template_path,
@@ -482,32 +584,133 @@ def generate_cv_from_template(
     if os.path.exists(pdf_out):
         os.remove(pdf_out)
 
-    # Copiar plantilla y reemplazar placeholders
+    # Copiar plantilla
     shutil.copy(template_path, docx_out)
     doc = Document(docx_out)
 
     format_blocks = extract_format_blocks(doc)
-
     cv_json["_formatos"] = format_blocks
 
     data = cv_json_to_docx_data(cv_json)
 
-    # Reemplazo de placeholders
+    # -------------------------------------------------
+    # EXPERIENCIA (BLOQUE VISUAL, PEGADO EN PLACEHOLDER)
+    # -------------------------------------------------
+    experiencias = cv_json.get("experiencia", [])
+
+    if experiencias and isinstance(experiencias[0], dict):
+
+        bloque_exp = guardar_bloque_mixto(
+            doc,
+            "{{INICIO_EXPERIENCIA}}",
+            "{{FINAL_EXPERIENCIA}}"
+        )
+
+        print("BLOQUE EXP:", bloque_exp)
+
+        p_target = None
+        for p in doc.paragraphs:
+            if "{{EXPERIENCIA_PLANTILLA}}" in p.text:
+                p_target = p
+                break
+
+        if bloque_exp and p_target:
+            parent = p_target._element.getparent()
+            idx = parent.index(p_target._element)
+            parent.remove(p_target._element)
+
+            for exp in experiencias:
+                for _, xml in bloque_exp:
+                    xml_clonado = deepcopy(xml)
+                    time.sleep(0.5)
+                    funciones = exp.get("funciones", [])
+                    funciones_texto = ""
+
+                    if funciones:
+                        funciones_texto = "\n".join(funciones)
+
+                    print("FUNCIONES TEXTO:", funciones_texto)
+
+                    reemplazar_variables_xml(
+                        xml_clonado,
+                        {
+                            "fecha_inicio": exp.get("fecha_inicio", ""),
+                            "fecha_fin": exp.get("fecha_fin", ""),
+                            "empresa": exp.get("empresa", ""),
+                            "puesto": exp.get("puesto", ""),
+                            "ubicacion": exp.get("ubicacion", ""),
+                            "funciones": funciones_texto
+                        }
+                    )
+                    parent.insert(idx, xml_clonado)
+                    idx += 1
+
+    # -------------------------------------------------
+    # EDUCACION (BLOQUE VISUAL, PEGADO EN PLACEHOLDER)
+    # -------------------------------------------------
+    educaciones = cv_json.get("educacion", [])
+
+    if educaciones and isinstance(educaciones[0], dict):
+
+        bloque_edu = guardar_bloque_mixto(
+            doc,
+            "{{INICIO_EDUCACION}}",
+            "{{FINAL_EDUCACION}}"
+        )
+
+        print("BLOQUE EDU:", bloque_edu)
+
+        p_target = None
+        for p in doc.paragraphs:
+            if "{{EDUCACION}}" in p.text:
+                p_target = p
+                break
+
+        if bloque_edu and p_target:
+            parent = p_target._element.getparent()
+            idx = parent.index(p_target._element)
+            parent.remove(p_target._element)
+
+            for ed in educaciones:
+                for _, xml in bloque_edu:
+                    xml_clonado = deepcopy(xml)
+                    reemplazar_variables_xml(
+                        xml_clonado,
+                            {
+                                "fecha_inicio": ed.get("fecha_inicio", ""),
+                                "fecha_fin": ed.get("fecha_fin", ""),
+                                "titulo": ed.get("titulo", ""),
+                                "institucion": ed.get("institucion", ""),
+                                "ubicacion": ed.get("ubicacion", ""),
+                                "nota_final": ed.get("nota_final", "")
+                            }
+                    )
+                    parent.insert(idx, xml_clonado)
+                    idx += 1
+
+    # -------------------------------------------------
+    # REEMPLAZO GENERAL + LIMPIEZA LEGACY
+    # -------------------------------------------------
     replace_placeholders_preserve_style(doc, data)
-    time.sleep(2) 
+    time.sleep(1)
+
+    # SOLO usar remove_empty_blocks si NO hay bloques visuales
     remove_empty_blocks(doc, data)
-    time.sleep(2) 
+    time.sleep(1)
+
     remove_inline_empty_fields(doc, data)
 
     doc.save(docx_out)
 
-    # Funcion para generar PDF en hilo separado
+    # -------------------------------------------------
+    # PDF
+    # -------------------------------------------------
     pdf_generated = False
 
     def convert_pdf_thread():
         nonlocal pdf_generated
         try:
-            pythoncom.CoInitialize()  # Inicializar COM en este hilo
+            pythoncom.CoInitialize()
             convert(docx_out, pdf_out)
             if os.path.exists(pdf_out):
                 pdf_generated = True
@@ -517,14 +720,11 @@ def generate_cv_from_template(
     if platform.system().lower() == "windows":
         thread = threading.Thread(target=convert_pdf_thread)
         thread.start()
-        thread.join()  # Esperamos a que termine el PDF
+        thread.join()
 
         if not pdf_generated:
-            print("PDF no se pudo generar después de intentar en hilo.")
             pdf_out = None
     else:
-        # En otros sistemas no se usa docx2pdf
         pdf_out = None
 
-    # Devolver DOCX siempre, PDF si se genero
     return docx_out, pdf_out if pdf_generated else None

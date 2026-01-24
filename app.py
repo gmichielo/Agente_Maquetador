@@ -7,7 +7,6 @@ import sys
 from cv_gparser import parse_cv_with_gpt
 from cv_adapter import adapt_gpt_cv_to_engine
 from cv_engine import read_pdf, rebuild_structure, generate_cv_from_template, extract_format_blocks
-
 app = Flask(__name__)
 
 def resource_path(relative_path):

@@ -8,13 +8,30 @@ client = OpenAI()
 
 def parse_cv_with_gpt(cv_text: str, formatos: dict) -> dict:
     prompt = f"""
-Eres un sistema especializado en analizar y extraer información estructurada desde CVs profesionales.
-Tu salida DEBE ser EXCLUSIVAMENTE un JSON válido.
-NO incluyas explicaciones, comentarios, texto adicional ni markdown.
-NO RESUMAS NADA, TODA LA INFORMACION QUE SALGA EN EL CV COLOCALA EN SU SITIO TAL CUAL EL CV
+Eres un sistema ATS experto en análisis y extracción ESTRUCTURADA de CVs profesionales
+para un MAQUETADOR AUTOMÁTICO de currículums.
 
-La respuesta DEBE seguir EXACTAMENTE la siguiente estructura JSON.
-No alteres nombres de claves, no cambies tipos de datos y no agregues campos nuevos.
+TU SALIDA DEBE SER EXCLUSIVAMENTE UN JSON VÁLIDO.
+NO incluyas explicaciones, comentarios, texto adicional ni markdown.
+NO RESUMAS información salvo donde se indique explícitamente.
+NO INVENTES datos bajo ningún concepto.
+
+--------------------------------------------------
+REGLA CRÍTICA ABSOLUTA
+--------------------------------------------------
+DEBES EXTRAER LA INFORMACIÓN TAL CUAL APARECE EN EL CV,
+RESPETANDO LA SEPARACIÓN REAL DE EXPERIENCIAS Y EDUCACIONES.
+
+PROHIBIDO:
+- Unir varias experiencias en una sola
+- Unir varias educaciones en una sola
+- Convertir experiencia o educación en strings largos
+- Mezclar experiencia con educación
+- Inferir datos no explícitos
+
+--------------------------------------------------
+ESTRUCTURA JSON OBLIGATORIA (NO MODIFICABLE)
+--------------------------------------------------
 {{
   "nombre": "",
   "contacto": {{
@@ -23,7 +40,6 @@ No alteres nombres de claves, no cambies tipos de datos y no agregues campos nue
     "github": "",
     "linkedin": "",
     "provincia_pais": ""
-
   }},
   "perfil": "",
   "resumen": "",
@@ -41,125 +57,138 @@ No alteres nombres de claves, no cambies tipos de datos y no agregues campos nue
   "proyectos_formateados": ""
 }}
 
-La clave "experiencia" DEBE ser una lista de objetos.
-Cada objeto representa una experiencia laboral individual y DEBE contener SOLO las siguientes claves:
+--------------------------------------------------
+EXPERIENCIA LABORAL (REGLAS OBLIGATORIAS)
+--------------------------------------------------
+La clave "experiencia" DEBE ser una LISTA DE OBJETOS.
+CADA EXPERIENCIA = UN TRABAJO DIFERENTE.
+
+Cada objeto DEBE contener SOLO estas claves:
 - fecha_inicio
 - fecha_fin
-- empresa (ESTO TODO EN MAYUSCULAS)
+- empresa (EN MAYÚSCULAS)
 - puesto
 - ubicacion
-- funciones (lista de strings)
+- funciones (lista de strings) con un salto de línea entre cada función (\n)
 
-La clave "educacion" DEBE ser una lista de objetos.
-Cada objeto representa una formación académica y DEBE contener SOLO las siguientes claves:
+REGLAS DE PARSING:
+- Detecta UNA experiencia por cada bloque real del CV
+- NO mezcles empresas distintas
+- NO mezcles fechas distintas
+- NO combines funciones de trabajos diferentes
+- Mantén el orden cronológico ORIGINAL (más reciente primero)
+- Si la experiencia es actual: usa "Present", "Actualidad" o "Current" como fecha_fin
+
+FUNCIONES:
+- Cada función debe ser UNA FRASE LIMPIA
+- SIN bullets (•, -, *, etc.)
+- SIN etiquetas tipo "Funciones:"
+- SIN formateo visual
+
+--------------------------------------------------
+EDUCACIÓN (REGLAS OBLIGATORIAS)
+--------------------------------------------------
+La clave "educacion" DEBE ser una LISTA DE OBJETOS.
+CADA OBJETO = UNA FORMACIÓN DIFERENTE.
+
+Claves obligatorias:
 - fecha_inicio
 - fecha_fin
-- institucion
 - titulo
+- institucion
 - ubicacion
 - nota_final
 
-IMPORTANTE
-La clave "resumen" DEBE contener un resumen profesional redactado en tercera persona,
-basado ÚNICAMENTE en la información presente en el CV.
-NO inventes información ni extrapoles cargos, empresas o tecnologías no mencionadas, ejemplo:
-"Perfil con titulación de técnico Superior en Desarrollo de Aplicaciones y 22 años de experiencia. Actualmente trabaja como analista AS400 en Zemsania para un cliente del sector retail, donde lleva a cabo tareas de análisis y testing de aplicaciones en entorno AS/400, coordinación de equipos técnicos, gestión y análisis de bases de datos en sistemas Iseries de IBM, y análisis funcional en entornos contables. Anteriormente, ha ocupado roles de jefe de proyecto en Capgemini y consultor en telecomunicaciones en Canadá. Ha trabajado en diversos sectores como retail, energética y telecomunicaciones, utilizando una amplia gama de tecnologías como iSeries AS/400, IBM/390, Sun Microsystems, entre otras. Posee un niel experto del inglés y francés debido a su residencia en Canadá"
+REGLAS CRÍTICAS:
+- NUNCA devuelvas educación como string
+- NUNCA unas dos titulaciones en una sola entrada
+- Si hay varias líneas con fechas distintas → son educaciones distintas
+- Si un dato no existe, deja el string vacío ""
+- Si NO hay educación → devuelve []
 
-Si el CV no contiene una sección explícita de "perfil", entonces copia EXACTAMENTE el contenido de "resumen" en el campo "perfil".
-
-El campo "anyos" debe representar el total de años de experiencia profesional,
-calculado a partir de las fechas de la sección "experiencia".
-Si no se puede calcular con precisión, usa una estimación conservadora basada en las fechas disponibles.
-
-En la clave de "resumen_profesional" DEBE contener un resumen profesional redactado en tercera persona,
-basado ÚNICAMENTE en la información presente en el CV.
-NO inventes información ni extrapoles cargos, empresas o tecnologías no mencionadas, ejemplo:
-Profesional con experiencia en desarrollo de más de 4 años como fullstack, trabajando con Java en backend con Spring (Boot, Security, Batch) y en frontend con Angular (4 años).
-Durante 2 años como arquitecto y otros dos desarrollador.
-Versiones 9, 11, 14 sobre todo.
-Desarrollo de microservicios y APIs REST con Spring Boot (y SOAP cuando ha sido necesario), en versiones de Java desde 7/8 hasta 15/17/21. Diseño de procesos por lotes con Spring Batch y descubrimiento de servicios con Spring Cloud/Eureka, integrando comunicación sincrónica vía HTTP y asíncrona con Kafka. Implementa validación y seguridad de peticiones con Jakarta Validation y gestión de tokens, y genero comunicaciones transaccionales con Thymeleaf. Trabajo habitual con Maven (proyectos multimódulo y librerías comunes) y Git con revisiones de código. En arquitectura aplica enfoque hexagonal para aislar el dominio, principios SOLID y Clean Code, diseño modelos de datos y defino contratos bajo API-First/Last. Despliega y opera en Kubernetes, y ha liderado migraciones de monolitos y aplicaciones legacy (JSP/Symfony/PHP) hacia microservicios Java, estandarizando componentes y acelerando el desarrollo alrededor de un 40%.
-
-REGLA GENERAL DE ESAS SECCIONES: 
-Si una sección no existe en el CV:
-- Devuelve el campo vacío según su tipo ("" , [] , {{}})
-- NO elimines la clave del JSON
-- NO dejes valores incoherentes o nulos
-
-Además recibirás un formato de experiencia y educación.
-Debes generar los campos:
-- experiencia_formateada: string único
-- educacion_formateada: string único
-
-Cada uno debe ser la concatenación de los elementos individuales,
-separados por EXACTAMENTE dos saltos de línea (\n\n).
-
-Cada string debe respetar EXACTAMENTE el formato recibido,
-sustituyendo los placeholders {{clave}} por los valores del objeto.
-
-REGLAS IMPORTANTES:
-- Si el documento NO es un CV (por ejemplo: carta, oferta laboral, texto genérico):
-    devuelve el JSON con TODAS las claves vacías.
-    NO intentes inferir información.
-- Si no es archivo de un tipo valido (sea pdf, doc, etc) no lo proceses, devuelve el json sin rellenarlo
-- No inventes datos (ESTO SUPER IMPORTANTE)
-- NO SUBAS NINGUN DATO A TU REGISTRO O MEMORIA
-- Mantén el orden original de skills
-- Usa bullets • cuando aplique
-- Si una sección no existe, devuélvela vacía
-- No agregues ningún campo extra
+--------------------------------------------------
+FORMATO VISUAL (OBLIGATORIO)
+--------------------------------------------------
+NO INVENTES FORMATO.
 
 REGLAS:
-- Usa siempre "Empresa:", "Puesto:" y "Funciones:"
-- Ordenar de forma de mas reciente a mas antigua teneiendo prioridad las que son Actuales (current, present,actualidad,etc...)
-- Usa bullets • (no ●, no -, no *)
-- NO devuelvas objetos, SOLO strings
-- Mantén el orden cronológico original
-- Si no hay experiencia, devuelve una lista vacía []
+- Usa SOLO el formato de su sección
+- NO mezcles formatos
+- NO alteres etiquetas
+- NO agregues texto
+- Si una clave no existe → elimina ESA LÍNEA COMPLETA
 
-Además, el campo "experiencia_formateada" debe ser
-la concatenación de todos los elementos de "experiencia"
-separados por DOS saltos de línea.
+--------------------------------------------------
+RESÚMENES
+--------------------------------------------------
+"resumen" y "resumen_profesional":
+- Redactados en tercera persona
+- Basados ÚNICAMENTE en el CV
+- NO inventes tecnologías, empresas ni roles
+- NO extrapoles experiencia
+- En el caso de "resumen_profesional" habla de lo que domina y años de experiencia en eso
 
-Además, el campo "educacion_formateada" debe ser
-la concatenación de todos los elementos de "educacion"
-separados por DOS saltos de línea.
+Si NO existe sección "perfil":
+- Copia EXACTAMENTE el contenido de "resumen" en "perfil"
 
-REGLAS DE DIVERSOS ASPECTOS:
-En la parte de provincia_pais obivamente si el CV lo indica pues colocar esa informacion, pero el
-caso que no lo de pues Si no se indica explícitamente provincia o país: realiza una estimación basada en experiencia o educación reciente, y agrega el sufijo literal: [Estimado]
-Cualquier experiencia o educacion que haga referencia que esta en la actualidad (current, present,actualidad,etc...) tiene mas peso la ubicacion de esa
+--------------------------------------------------
+AÑOS DE EXPERIENCIA
+--------------------------------------------------
+"anyos":
+- Calcula a partir de fechas de experiencia
+- Si no es exacto, usa estimación conservadora
+- NO inventes
+- Formato obligatorio: "X años de experiencia" o "X años y Y meses de experiencia"
 
-En la parte de areas_especializacion pues si el CV lo indica pues colocar esa informacion, pero el
-caso que no lo de pues hacer una estimacion por datos relevantes (habilidades, experiencias laborales, proyectos) e indicar con [Estimado]
-
-La sección "skills" DEBE contener strings con el formato:
+--------------------------------------------------
+SKILLS
+--------------------------------------------------
+Formato obligatorio por elemento:
 "Grupo: skill1, skill2, skill3"
-Ejemplos: Herramientas: Git, Microsoft 365; Lenguajes: C#, Python
 
-Incluye SIEMPRE una línea adicional para soft skills, separada por un salto de línea.
-En skills deben estar tambien tras un salto de linea el apartado de soft skills
+Ejemplo:
+"Lenguajes: Java, Python"
+"Herramientas: Git, Jenkins"
 
+Incluye SIEMPRE soft skills en una línea separada.
+
+--------------------------------------------------
+PROVINCIAS Y ESPECIALIZACIÓN
+--------------------------------------------------
+provincia_pais:
+- Usa la indicada en el CV
+- Si NO existe → estima y añade [Estimado]
+- La experiencia o educación ACTUAL tiene prioridad para estimar ubicación
+
+areas_especializacion:
+- Usa la indicada en el CV
+- Si NO existe → estima según skills/experiencias y añade [Estimado]
+
+--------------------------------------------------
+DOCUMENTOS NO VÁLIDOS
+--------------------------------------------------
+Si el documento NO es un CV:
+→ Devuelve el JSON con TODAS las claves vacías
+
+Si el archivo NO es válido (no PDF/DOC):
+→ Devuelve el JSON vacío
+
+--------------------------------------------------
+PROHIBICIONES ABSOLUTAS
+--------------------------------------------------
+- NO inventar datos
+- NO añadir campos nuevos
+- NO eliminar claves
+- NO guardar datos en memoria
+- NO usar markdown
+
+--------------------------------------------------
 CV A ANALIZAR:
 \"\"\"
-FORMATO EXACTO PARA EXPERIENCIA (OBLIGATORIO):
-""
-{formatos.get("EXPERIENCIA", "")}
-""
-
-FORMATO EXACTO PARA EDUCACION (OBLIGATORIO):
-""
-{formatos.get("EDUCACION", "")}
-""
-
-REGLAS DE FORMATO:
-- Usa SOLO el formato correspondiente a cada sección
-- NO mezcles formatos
-- NO cambies etiquetas
-- NO agregues texto fuera del formato
-- Si una clave no existe, elimina la línea completa
-
 {cv_text}
+\"\"\"
 """
+
 
     response = client.chat.completions.create(
         model="gpt-4.1",
