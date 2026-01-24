@@ -622,10 +622,10 @@ def generate_cv_from_template(
                     xml_clonado = deepcopy(xml)
                     time.sleep(0.5)
                     funciones = exp.get("funciones", [])
-                    funciones_texto = ""
 
+                    funciones_texto = ""
                     if funciones:
-                        funciones_texto = "\n".join(funciones)
+                        funciones_texto = "\n".join(f"{f}" for f in funciones)
 
                     reemplazar_variables_xml(
                         xml_clonado,
@@ -635,7 +635,7 @@ def generate_cv_from_template(
                             "empresa": exp.get("empresa", ""),
                             "puesto": exp.get("puesto", ""),
                             "ubicacion": exp.get("ubicacion", ""),
-                            "funciones": funciones_texto
+                            "funcion": funciones_texto
                         }
                     )
                     parent.insert(idx, xml_clonado)
