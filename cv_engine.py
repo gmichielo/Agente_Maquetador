@@ -606,6 +606,12 @@ def generate_cv_from_template(
             "{{FINAL_EXPERIENCIA}}"
         )
 
+        bloque_func = guardar_bloque_mixto(
+            doc,
+            "{{INICIO_FUNCION}}",
+            "{{FINAL_FUNCION}}"
+        )
+
         p_target = None
         for p in doc.paragraphs:
             if "{{EXPERIENCIA_PLANTILLA}}" in p.text:
@@ -618,14 +624,12 @@ def generate_cv_from_template(
             parent.remove(p_target._element)
 
             for exp in experiencias:
+
+    # -------------------------
+    # CABECERA (UNA SOLA VEZ)
+    # -------------------------
                 for _, xml in bloque_exp:
                     xml_clonado = deepcopy(xml)
-                    time.sleep(0.5)
-                    funciones = exp.get("funciones", [])
-
-                    funciones_texto = ""
-                    if funciones:
-                        funciones_texto = "\n".join(f"{f}" for f in funciones)
 
                     reemplazar_variables_xml(
                         xml_clonado,
@@ -635,11 +639,26 @@ def generate_cv_from_template(
                             "empresa": exp.get("empresa", ""),
                             "puesto": exp.get("puesto", ""),
                             "ubicacion": exp.get("ubicacion", ""),
-                            "funcion": funciones_texto
                         }
                     )
+
                     parent.insert(idx, xml_clonado)
                     idx += 1
+
+                # -------------------------
+                # FUNCIONES (UNA DEBAJO DE OTRA)
+                # -------------------------
+                for funcion in exp.get("funciones", []):
+                    for _, xml in bloque_func:
+                        xml_clonado = deepcopy(xml)
+
+                        reemplazar_variables_xml(
+                            xml_clonado,
+                            {"funcion": funcion}
+                        )
+
+                        parent.insert(idx, xml_clonado)
+                        idx += 1
 
     # -------------------------------------------------
     # EDUCACION (BLOQUE VISUAL, PEGADO EN PLACEHOLDER)
