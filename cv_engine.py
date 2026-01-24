@@ -606,8 +606,6 @@ def generate_cv_from_template(
             "{{FINAL_EXPERIENCIA}}"
         )
 
-        print("BLOQUE EXP:", bloque_exp)
-
         p_target = None
         for p in doc.paragraphs:
             if "{{EXPERIENCIA_PLANTILLA}}" in p.text:
@@ -628,8 +626,6 @@ def generate_cv_from_template(
 
                     if funciones:
                         funciones_texto = "\n".join(funciones)
-
-                    print("FUNCIONES TEXTO:", funciones_texto)
 
                     reemplazar_variables_xml(
                         xml_clonado,
@@ -657,8 +653,6 @@ def generate_cv_from_template(
             "{{INICIO_EDUCACION}}",
             "{{FINAL_EDUCACION}}"
         )
-
-        print("BLOQUE EDU:", bloque_edu)
 
         p_target = None
         for p in doc.paragraphs:
