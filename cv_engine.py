@@ -286,6 +286,7 @@ def clean_bullets(lines):
 def cv_json_to_docx_data(cv):
     return {
         "NOMBRE": cv.get("nombre", ""),
+        "INICIALES": cv.get("nombreinis", ""),
         "EMAIL": cv.get("contacto", {}).get("email", ""),
         "TELEFONO": cv.get("contacto", {}).get("telefono", ""),
         "GITHUB": cv.get("contacto", {}).get("github", ""),

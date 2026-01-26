@@ -34,6 +34,7 @@ ESTRUCTURA JSON OBLIGATORIA (NO MODIFICABLE)
 --------------------------------------------------
 {{
   "nombre": "",
+  "nombreinis": "",
   "contacto": {{
     "email": "",
     "telefono": "",
@@ -57,6 +58,8 @@ ESTRUCTURA JSON OBLIGATORIA (NO MODIFICABLE)
   "proyectos_formateados": ""
 }}
 
+La clave de nombreinis:
+- Extrae y colocal en mayusculas sin espacio las iniciales del nombre del candidato
 --------------------------------------------------
 EXPERIENCIA LABORAL (REGLAS OBLIGATORIAS)
 --------------------------------------------------
