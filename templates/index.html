@@ -9,12 +9,61 @@
 <body>
 
 <script>
+function cerrarApp() {
+    const overlay = document.getElementById("overlay");
+    const overlayText = document.getElementById("overlayText");
+    const spinner = document.getElementById("overlaySpinner");
+
+    // Mostrar overlay
+    overlay.classList.add("active");
+
+    // Cambiar mensaje
+    overlayText.textContent = "Aplicación cerrada";
+
+    // Ocultar spinner
+    spinner.style.display = "none";
+
+    // Esperar 1 segundo y cerrar backend
+    setTimeout(() => {
+        navigator.sendBeacon("/shutdown");
+    }, 1000);
+}
+</script>
+
+<script>
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("cvForm");
     const overlay = document.getElementById("overlay");
     const resultBox = document.getElementById("resultBox");
     const submitBtn = document.getElementById("submitBtn");
     const fileInput = form.querySelector('input[type="file"]');
+
+    const reuseBtn = document.getElementById("reuseBtn");
+    const reuseInput = document.getElementById("reuse_last");
+    
+    let reuseActive = false;
+
+    if (reuseBtn) {
+        reuseBtn.addEventListener("click", () => {
+            reuseActive = !reuseActive;
+
+            if (reuseActive) {
+                fileInput.disabled = true;
+                fileInput.removeAttribute("required");
+                reuseInput.value = "1";
+
+                reuseBtn.textContent = "✔ Usando último CV";
+                reuseBtn.classList.add("active");
+            } else {
+                fileInput.disabled = false;
+                fileInput.setAttribute("required", "required");
+                reuseInput.value = "0";
+
+                reuseBtn.textContent = "🔁 Usar último CV";
+                reuseBtn.classList.remove("active");
+            }
+        });
+    }
 
     form.addEventListener("submit", () => {
         // Mostrar overlay
@@ -47,11 +96,20 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <div class="card">
-    <h2>Generador de CV</h2>
+    <button type="button" class="close-btn" onclick="cerrarApp()" title="Cerrar aplicación">
+        ✖
+    </button>
 
     <form method="POST" enctype="multipart/form-data" id="cvForm">
         <label>CV en PDF</label>
         <input type="file" name="cv_pdf" required>
+        {% if last_cv_exists %}
+            <button type="button" id="reuseBtn" class="reuse-btn">
+                🔁 Usar último CV
+            </button>
+        {% endif %}
+
+        <input type="hidden" name="reuse_last" id="reuse_last" value="0">
 
         <label>Plantilla</label>
         <select name="plantilla" required>
@@ -91,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <div id="overlay">
     <div class="overlay-content">
-        <span class="spinner"></span>
-        <p>Procesando CV...</p>
+        <span class="spinner" id="overlaySpinner"></span>
+        <p id="overlayText">Procesando CV...</p>
     </div>
 </div>

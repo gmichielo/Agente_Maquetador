@@ -1,9 +1,11 @@
 from flask import Flask, render_template, request, send_file
 from docx import Document
 import os
+import signal
 import threading
 import webbrowser
 import sys
+import shutil
 from cv_gparser import parse_cv_with_gpt
 from cv_adapter import adapt_gpt_cv_to_engine
 from cv_engine import read_pdf, rebuild_structure, generate_cv_from_template, extract_format_blocks
@@ -76,28 +78,82 @@ PLANTILLAS = {
     }
 }
 
+LAST_CV_PATH = None
+LAST_CV_JSON = None
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    global LAST_CV_PATH, LAST_CV_JSON
+
+    last_cv_exists = LAST_CV_PATH is not None and LAST_CV_JSON is not None
+
     if request.method == "POST":
         pdf_file = request.files.get("cv_pdf")
         plantilla_id = request.form.get("plantilla")
+        reuse_last = request.form.get("reuse_last") == "1"
 
-        if not pdf_file or not plantilla_id:
-            return render_template("index.html", success=False, error="Faltan datos")
-
-        print("📄 CV recibido:", pdf_file.filename)
+        if not plantilla_id:
+            return render_template(
+                "index.html",
+                success=False,
+                error="Faltan datos",
+                last_cv_exists=last_cv_exists
+            )
+        
         print("📄 Plantilla:", plantilla_id)
 
-        # Limpiar output
+        # -----------------------------
+        # 1️⃣ Obtener CV
+        # -----------------------------
+        if reuse_last and last_cv_exists:
+            print("♻️ Reutilizando CV en memoria")
+            cv_json = LAST_CV_JSON
+            pdf_path = LAST_CV_PATH
+        else:
+            if not pdf_file:
+                return render_template(
+                    "index.html",
+                    success=False,
+                    error="No se ha subido ningún CV",
+                    last_cv_exists=last_cv_exists
+                )
+
+            pdf_path = os.path.join(UPLOAD_FOLDER, pdf_file.filename)
+            pdf_file.save(pdf_path)
+
+            print("📄 CV recibido:", pdf_file.filename)
+
+            print("🔍 Parseando CV...")
+            # Parsear CV SOLO AQUÍ
+            raw_text = read_pdf(pdf_path)
+            clean_text = rebuild_structure(raw_text)
+
+            doc_tmp = Document(
+                os.path.join(
+                    BASE_DIR,
+                    "templates_docx",
+                    PLANTILLAS[plantilla_id]["file"]
+                )
+            )
+            format_blocks = extract_format_blocks(doc_tmp)
+
+            cv_json = parse_cv_with_gpt(clean_text, format_blocks)
+
+            # Cachear
+            LAST_CV_PATH = pdf_path
+            LAST_CV_JSON = cv_json
+            last_cv_exists = True
+
+        # -----------------------------
+        # 2️⃣ Limpiar output
+        # -----------------------------
         for f in os.listdir(OUTPUT_FOLDER):
             os.remove(os.path.join(OUTPUT_FOLDER, f))
 
-        pdf_path = os.path.join(UPLOAD_FOLDER, pdf_file.filename)
-        pdf_file.save(pdf_path)
-
+        # -----------------------------
+        # 3️⃣ Generar CV
+        # -----------------------------
         plantilla_info = PLANTILLAS.get(plantilla_id)
-
         plantilla_path = os.path.join(
             BASE_DIR,
             "templates_docx",
@@ -106,27 +162,12 @@ def index():
 
         plantilla_nombre = plantilla_info["name"]
 
-        print("🔍 Parseando CV...")
-        raw_text = read_pdf(pdf_path)
-        clean_text = rebuild_structure(raw_text)
-
-        # 1️⃣ Cargar plantilla
-        doc = Document(plantilla_path)
-
-        # 2️⃣ Extraer formatos
-        format_blocks = extract_format_blocks(doc)
-        print (format_blocks)
-
-        # 3️⃣ Llamar a GPT con CV + formatos
-        cv_json = parse_cv_with_gpt(clean_text, format_blocks)
-
-        # 4️⃣ Adaptación mínima
         cv_json = adapt_gpt_cv_to_engine(cv_json, plantilla_nombre)
-        
+
         print("✅ CV parseado:")
         print(cv_json)
 
-        print("📝 Generando CV final...")
+        print("\n📝 Generando CV final...")
         docx_path, pdf_out = generate_cv_from_template(
             plantilla_path,
             cv_json,
@@ -139,10 +180,16 @@ def index():
             success=True,
             nombre=cv_json.get("nombre", ""),
             docx=os.path.basename(docx_path),
-            pdf=os.path.basename(pdf_out) if pdf_out else None
+            pdf=os.path.basename(pdf_out) if pdf_out else None,
+            last_cv_exists=last_cv_exists
         )
 
-    return render_template("index.html", success=False)
+    return render_template(
+        "index.html",
+        success=False,
+        last_cv_exists=last_cv_exists
+    )
+
 
 @app.route("/download/<filename>")
 def download(filename):
@@ -150,6 +197,15 @@ def download(filename):
         os.path.join(OUTPUT_FOLDER, filename),
         as_attachment=True
     )
+
+@app.route("/shutdown", methods=["POST"])
+def shutdown():
+    if request.remote_addr not in ("127.0.0.1", "::1"):
+        return "No permitido", 403
+
+    print("🛑 App cerrada por el usuario")
+    os.kill(os.getpid(), signal.SIGTERM)
+    return "Servidor detenido"
 
 if __name__ == "__main__":
     os.makedirs("uploads", exist_ok=True)
