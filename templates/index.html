@@ -9,6 +9,17 @@
 <body>
 
 <script>
+function notifyActivity() {
+    navigator.sendBeacon("/activity");
+}
+
+    // ⏱️ Avisar cada 60 segundos
+    setInterval(() => {
+        notifyActivity();
+    }, 60000); // 60.000 ms = 1 minuto
+</script>
+
+<script>
 function cerrarApp() {
     const overlay = document.getElementById("overlay");
     const overlayText = document.getElementById("overlayText");

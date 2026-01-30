@@ -5,11 +5,31 @@ import signal
 import threading
 import webbrowser
 import sys
-import shutil
+import time
 from cv_gparser import parse_cv_with_gpt
 from cv_adapter import adapt_gpt_cv_to_engine
 from cv_engine import read_pdf, rebuild_structure, generate_cv_from_template, extract_format_blocks
 app = Flask(__name__)
+
+LAST_ACTIVITY = time.time()
+IDLE_TIMEOUT = 300  # ⏱️ segundos (ej: 300 = 5 minutos)
+
+def inactivity_watcher():
+    global LAST_ACTIVITY
+
+    while True:
+        time.sleep(5)  # cada 5 segundos revisa
+        idle_time = time.time() - LAST_ACTIVITY
+
+        if idle_time > IDLE_TIMEOUT:
+            print("🕒 Inactividad detectada. Cerrando app...")
+            os.kill(os.getpid(), signal.SIGTERM)
+
+@app.route("/activity", methods=["POST"])
+def activity():
+    global LAST_ACTIVITY
+    LAST_ACTIVITY = time.time()
+    return "", 204
 
 def resource_path(relative_path):
     try:
@@ -211,5 +231,6 @@ if __name__ == "__main__":
     os.makedirs("uploads", exist_ok=True)
     os.makedirs("output", exist_ok=True)
 
+    threading.Thread(target=inactivity_watcher, daemon=True).start()
     threading.Timer(1.5, open_browser).start()
     app.run(host="127.0.0.1", port=5000, debug=False)
